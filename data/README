@@ -1,1 +1,4 @@
 Data directory for storing fixed data sets
+
+selex_sample : a few sampled TF-ligand-cycle data files for testing
+test-data : test data provided by word2vec implementation by E. Newell
