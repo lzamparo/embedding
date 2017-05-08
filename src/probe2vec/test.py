@@ -173,7 +173,7 @@ class TestUnigramDictionary(TestCase):
         # should be observed, in the limit of infinite sample
         total_in_expected = float(len(self.CORPUS))
 
-        tolerance = 0.002
+        tolerance = 0.004  # LZ: this test seems to behave stochastically ??!?  found_frac for grapefruit varies from 0.29718 to 0.3033
         for idx, found_freq in six.iteritems(counter):
             found_frac = found_freq / 100000.0
             token = unigram_dictionary.get_token(idx)
@@ -278,10 +278,10 @@ class TestUnigramDictionary(TestCase):
 
         unigram_dictionary = UnigramDictionary(on_unk=SILENT)
         unigram_dictionary.update(self.CORPUS)
-        unigram_dictionary.save('test-data/test-unigram-dictionary')
+        unigram_dictionary.save('../../data/test-data/test-unigram-dictionary')
 
         unigram_dictionary_copy = UnigramDictionary(on_unk=SILENT)
-        unigram_dictionary_copy.load('test-data/test-unigram-dictionary')
+        unigram_dictionary_copy.load('../../data/test-data/test-unigram-dictionary')
 
         # Test that the mapping from tokens to ids is unchanged
         for token in self.FREQUENCIES:
@@ -775,7 +775,7 @@ class TestCounterSampler(TestCase):
 
     def test_save_load(self):
 
-        fname = 'test-data/test-counter-sampler/test-counter-sampler.gz'
+        fname = '../../data/test-data/test-counter-sampler/test-counter-sampler.gz'
 
         # Make a sampler with probabilities proportional to counts
         counts = list(range(1,6))
@@ -889,11 +889,11 @@ class TestTokenMap(TestCase):
     def test_save_load(self):
         token_map = TokenMap(on_unk=SILENT)
         token_map.update(self.TOKENS)
-        token_map.save('test-data/test-token-map/test-token-map.gz')
+        token_map.save('../../data/test-data/test-token-map/test-token-map.gz')
 
         token_map_copy = TokenMap(on_unk=SILENT)
         token_map_copy.load(
-            'test-data/test-token-map/test-token-map.gz'
+            '../../data/test-data/test-token-map/test-token-map.gz'
         )
         self.assertEqual(
             token_map_copy.get_ids(self.TOKENS),
@@ -933,8 +933,8 @@ class TestDataReader(TestCase):
         # Define some parameters to be used in construction
         # Minibatcher
         self.files = [
-            'test-data/test-corpus/003.tsv',
-            'test-data/test-corpus/004.tsv'
+            '../../data/test-data/test-corpus/003.tsv',
+            '../../data/test-data/test-corpus/004.tsv'
         ]
         self.batch_size = 5
         self.macrobatch_size = 5
@@ -962,13 +962,13 @@ class TestDataReader(TestCase):
 
 
     def test_prune(self):
-        save_dir = 'test-data/test-dataset-reader'
+        save_dir = '../../data/test-data/test-dataset-reader'
         if os.path.exists(save_dir):
             shutil.rmtree(save_dir)
 
         files = [
-            'test-data/test-corpus/003.tsv',
-            'test-data/test-corpus/004.tsv'
+            '../../data/test-data/test-corpus/003.tsv',
+            '../../data/test-data/test-corpus/004.tsv'
         ]
 
         # First make a dataset reader with no min frequency
@@ -1194,7 +1194,7 @@ class TestDataReader(TestCase):
         noise_batch_size = self.batch_size * self.noise_ratio
 
         for signal_macrobatch, noise_macrobatch in dataset:
-            num_batches = len(signal_macrobatch) / self.batch_size
+            num_batches = len(signal_macrobatch) // self.batch_size
             for pointer in range(num_batches):
 
                 signal_start = pointer * batch_size
@@ -1350,8 +1350,8 @@ class TestMinibatcher(TestCase):
         # Define some parameters to be used in construction
         # Minibatcher
         self.files = [
-            'test-data/test-corpus/003.tsv',
-            'test-data/test-corpus/004.tsv'
+            '../../data/test-data/test-corpus/003.tsv',
+            '../../data/test-data/test-corpus/004.tsv'
         ]
         self.batch_size = 5
         self.macrobatch_size = 20

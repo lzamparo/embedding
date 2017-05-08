@@ -620,7 +620,7 @@ class DatasetReader(object):
         '''
 
         num_examples = 0
-        chooser = TokenChooser(K=len(self.kernel)/2, kernel=self.kernel)
+        chooser = TokenChooser(K=len(self.kernel) // 2, kernel=self.kernel)
         #sorted_examples = []
 
         for filename in filename_iterator:

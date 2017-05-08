@@ -150,9 +150,13 @@ class CounterSampler(object):
             f = open(filename, 'w')
 
         for c in self.counts:
-            f.write('%d\n' % c)
-
-
+            try:
+                f.write('%d\n' % c)
+            except TypeError:
+                token = str(c) + '\n'
+                f.write(token.encode())            
+            
+        
     def load(self, filename):
         if filename.endswith('.gz'):
             f = gzip.open(filename)

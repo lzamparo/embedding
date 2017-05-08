@@ -42,8 +42,12 @@ class UnigramDictionary(object):
         tokens = self.token_map.tokens[1:]
 
         # Zip them together and sort by counts
-        token_counts = zip(counts, tokens)
-        token_counts.sort(reverse=True)
+        try:
+            token_counts = zip(counts, tokens)
+            token_counts.sort(reverse=True)
+        except AttributeError:
+            token_counts = list(zip(counts,tokens))
+            token_counts.sort(reverse=True)
 
         # Separate them again
         new_counts = [unk_count]

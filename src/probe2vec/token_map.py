@@ -13,11 +13,11 @@ UNK = 0
 
 def ensure_str(s):
     '''
-    Ensures that the string is encoded as str, not unicode
+    Ensures that the string is encoded as a unicode str, not bytes
     '''
     try:
-        return s.encode('utf8')
-    except UnicodeDecodeError:
+        return s.decode('utf8')
+    except AttributeError:
         return s
 
 
@@ -152,7 +152,11 @@ class TokenMap(object):
             f = open(filename, 'w')
 
         for idx, token in enumerate(self.tokens):
-            f.write(token + '\n')
+            try:
+                f.write(token + '\n')
+            except TypeError:
+                token = token + '\n'
+                f.write(token.encode())
 
 
     def load(self, filename):
@@ -162,10 +166,14 @@ class TokenMap(object):
         if filename.endswith('.gz'):
             f = gzip.open(filename)
         else:
-            f = gzip.open(filename)
+            f = open(filename)
 
         for idx, line in enumerate(f):
-            token = line.strip()
+            try:
+                token = line.strip().decode('utf-8')
+            except AttributeError:
+                line = line.decode('utf-8')
+                token = line.strip()
             self.map[token] = idx
             self.tokens.append(token)
 
