@@ -43,6 +43,10 @@ def word2vec(
         num_processes=3,
         max_queue_size=0,
         parse=default_parse,
+        
+        # Parsing options
+        k=None,
+        stride=None,
 
         # Batching options
         num_epochs=5,
@@ -98,14 +102,17 @@ def word2vec(
         t=t,
         kernel=kernel,
         parse=parse,
-        verbose=verbose
+        verbose=verbose,
+        k=k,
+        stride=stride
     )
-
+    
     # Prepare the dataset reader (this produces the counter_sampler stats)
     if not reader.is_prepared():
         if verbose:
             print('preparing dictionaries...')
-        reader.prepare(save_dir=save_dir)
+        reader_kwargs = {'verbose': verbose, 'save_dir': save_dir}    
+        reader.prepare(**reader_kwargs)
 
     # Make a symbolic minibatcher
     minibatcher = NoiseContrastiveTheanoMinibatcher(

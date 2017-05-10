@@ -10,6 +10,7 @@ from .unigram_dictionary import UnigramDictionary
 import numpy as np
 import os
 import sys
+import gzip
 
 
 class TokenChooser(object):
@@ -121,17 +122,38 @@ def default_parse(filename, verbose=True):
     * [any]: file-format-independent representation of training data.
     '''
     tokenized_sentences = []
-    for line in open(filename):
+    
+    if filename.endswith('.gz'):
+        f = gzip.open(filename,encoding='utf-8')
+    else:
+        f = open(filename, encoding='utf-8')
+        
+    for line in f:
         tokenized_sentences.append(line.strip().split())
+        
+    f.close()
     return tokenized_sentences
 
 
-def kmerize_parse(filename, k=6, stride=4, verbose=True):
+def fastq_parser(file):
+    ''' Parse and yield four line fastq records '''
+    record = []
+    for line in file:
+        if line.startswith("@HISEQ"):
+            if record:
+                yield record
+            record = [line.strip()]
+        else:
+            record.append(line.strip())
+    yield record  
+
+def kmerize_fastq_parse(filename, **kwargs):
     '''
-    Parses input corpus files into a file-format independent  in-memory
-    representation.  The output of this functino is passed into
-    `build_examples` for any processing that is needed, irrespective
-    of file format, to generate examples from the stored data.
+    Parses input from fastq a fastq encoded corpus files into a 
+    file-format independent  in-memory representation.  The output
+    of this function is passed into `build_examples` for any 
+    processing that is needed, irrespective of file format, to 
+    generate examples from the stored data.
 
     INPUTS
     * filename [str]: path to corpus file to be read
@@ -139,9 +161,32 @@ def kmerize_parse(filename, k=6, stride=4, verbose=True):
     RETURNS
     * [any]: representation of training data.
     '''
+    
+    # get k, stride, verbose from kwargs
+    k = kwargs.get('k',-1)
+    stride = kwargs.get('stride',-1)
+    if k < 0 or stride < 0:
+        raise DataSetReaderIllegalStateException("For kmerized parsing"
+                                                 "k must be > 0 and "
+                                                 "stride must be > 0")
+    
     tokenized_sentences = []
-    for line in open(filename):
-        tokenized_sentences.append(kmerize(line, k, stride))
+    
+    if filename.endswith('.gz'):
+        f = gzip.open(filename, mode='rt', encoding='utf-8')
+    else:
+        f = open(filename, mode='r', encoding='utf-8')
+        
+    for fastq_record in fastq_parser(f):
+        try:
+            ID, seq, spacer, quality = fastq_record
+        except ValueError:
+            fastq_str = "\n".join(fastq_record)
+            print("Got a malformed fastq record in ", filename, " : ", fastq_str)
+            continue
+        tokenized_sentences.append(kmerize(seq, k, stride))
+        
+    f.close()
     return tokenized_sentences
 
 
@@ -150,7 +195,7 @@ def kmerize(line, k, stride):
     Parses the sequences into kmers, using stride
     '''
     line = line.strip()
-    kmerized = [line[i:i + k] for i in range(0, len(test) - k, stride)]
+    kmerized = [line[i:i + k] for i in range(0, len(line) - k, stride)]
     return kmerized
 
 
@@ -171,7 +216,9 @@ class DatasetReader(object):
         max_queue_size=0,
         macrobatch_size=20000,
         parse=default_parse,
-        verbose=True
+        verbose=True,
+        k=None,
+        stride=None
     ):
 
         # Register parameters to instance namespace
@@ -187,6 +234,8 @@ class DatasetReader(object):
         self._parse = parse
         self.verbose = verbose
         self.min_frequency = min_frequency
+        self.k = k
+        self.stride = stride
 
         # If unigram dictionary not supplied, make one
         self.prepared = False
@@ -221,11 +270,11 @@ class DatasetReader(object):
         return False
 
 
-    def parse(self, filename):
+    def parse(self, filename, **kwargs):
         '''
         Delegate to the parse function given to the constructor.
-        '''
-        return self._parse(filename, self.verbose)
+        ''' 
+        return self._parse(filename, **dict(kwargs, k=self.k, stride=self.stride))
 
 
     def check_access(self, save_dir):
@@ -548,11 +597,11 @@ class DatasetReader(object):
         ))
 
 
-    def preparation(self, save_dir, min_frequency=None):
+    def preparation(self, save_dir, min_frequency=None, **kwargs):
 
         # Read through the corpus, building the UnigramDictionary
         for filename in self.generate_filenames():
-            for tokens in self.parse(filename):
+            for tokens in self.parse(filename, **kwargs):
                 self.unigram_dictionary.update(tokens)
 
         self.prepared = True
@@ -621,7 +670,9 @@ class DatasetReader(object):
 
         num_examples = 0
         chooser = TokenChooser(K=len(self.kernel) // 2, kernel=self.kernel)
-        #sorted_examples = []
+        
+        # include parsing kwargs that were part of the declaration of this reader
+        
 
         for filename in filename_iterator:
 
@@ -669,13 +720,6 @@ class DatasetReader(object):
             ])
 
         return noise_examples
-
-
-    #def parsed(self, filename):
-    #   tokenized_sentences = []
-    #   for line in open(filename):
-    #       tokenized_sentences.append(line.strip().split())
-    #   return tokenized_sentences
 
 
     def make_null_example(self):
