@@ -1,3 +1,6 @@
 src for source code
 
-probe2vec : package containing the embedding code for probe data
+
+drive_probe2vec.py : driver file for creating, training and testing probe2vec.
+probe2vec : package containing the embedding code for probe data.
+config_yamls : contains yaml files for setting up parameters for data source(s), save dir, and other parameters for building a model.

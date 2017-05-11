@@ -72,13 +72,16 @@ class UnigramDictionary(object):
         self.counter_sampler.compact()
 
 
-    def prune(self, min_frequency=5):
+    def prune(self, min_frequency=5, count=False):
         '''
         Remove all tokens that have been observed fewer than min_frequency
         times.  Counts for tokens that are removed are attributed to UNK.
+        `count=True` enumertes the discarded tokens.
         '''
         counts = []
         tokens = []
+        if count:
+            dumped = []
         for idx, token in enumerate(self.token_map.tokens):
 
             # Copy over tokens that have at least min_frequency
@@ -95,11 +98,16 @@ class UnigramDictionary(object):
             # observations to UNK
             else:
                 counts[UNK] += self.get_frequency(idx)
+                if count:
+                    dumped.append(token)
+                    
 
         # Create a new TokenMap and CounterFrequency based on the
         # filtered tokens and their counts
         self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
         self.counter_sampler = CounterSampler(counts=counts)
+        if count:
+            print("dropped ", len(dumped), " tokens in pruning the unigram dictionary")
 
 
     def add(self, token):

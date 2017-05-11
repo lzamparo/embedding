@@ -146,6 +146,61 @@ def fastq_parser(file):
         else:
             record.append(line.strip())
     yield record  
+    
+def fasta_parser(file):
+    ''' Parse and yield two line fasta records '''
+    record = []
+    for line in file:
+        if line.startswith(">"):
+            if record:
+                yield record
+            record = [line.strip()]
+        else:
+            record.append(line.strip())
+    yield record
+    
+    
+def kmerize_fasta_parse(filename, **kwargs):
+    '''
+    Parses input from fastq a fasta encoded corpus files into a 
+    file-format independent  in-memory representation.  The output
+    of this function is passed into `build_examples` for any 
+    processing that is needed, irrespective of file format, to 
+    generate examples from the stored data.
+
+    INPUTS
+    * filename [str]: path to corpus file to be read
+
+    RETURNS
+    * [any]: representation of training data.
+    '''
+    
+    # get k, stride, verbose from kwargs
+    k = kwargs.get('k',-1)
+    stride = kwargs.get('stride',-1)
+    if k < 0 or stride < 0:
+        raise DataSetReaderIllegalStateException("For kmerized parsing"
+                                                 "k must be > 0 and "
+                                                 "stride must be > 0")
+    
+    tokenized_sentences = []
+    
+    if filename.endswith('.gz'):
+        f = gzip.open(filename, mode='rt', encoding='utf-8')
+    else:
+        f = open(filename, mode='r', encoding='utf-8')
+        
+    for fasta_record in fasta_parser(f):
+        try:
+            ID, seq = fasta_record
+        except ValueError:
+            fasta_str = "\n".join(fasta_record)
+            print("Got a malformed fastq record in ", filename, " : ", fasta_str)
+            continue
+        tokenized_sentences.append(kmerize(seq, k, stride))
+        
+    f.close()
+    return tokenized_sentences    
 
 def kmerize_fastq_parse(filename, **kwargs):
     '''
@@ -657,7 +712,7 @@ class DatasetReader(object):
                 'pruning dictionary to eliminate tokens occuring less than '
                 '%d times.' % self.min_frequency
             )
-        self.unigram_dictionary.prune(self.min_frequency)
+        self.unigram_dictionary.prune(self.min_frequency, count=True)
 
 
     def generate_examples(self, filename_iterator):
