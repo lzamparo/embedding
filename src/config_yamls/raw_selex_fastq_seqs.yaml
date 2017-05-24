@@ -1,5 +1,5 @@
 data_dir: ../data/selex_data/raw_seqs/
-save_dir: ../results/selex_test_results/
+save_dir: ../results/selex_test_results/raw_seqs/
 file_suffixes: 4.txt.gz
 K: 8
 stride: 4

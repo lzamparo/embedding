@@ -1,5 +1,5 @@
 data_dir: ../data/selex_data/enriched/
-save_dir: ../results/selex_test_results/
+save_dir: ../results/selex_test_results/enriched_kmers/
 file_suffixes: pos.fasta
 K: 8
 stride: 4

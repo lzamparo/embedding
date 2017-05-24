@@ -20,7 +20,7 @@ else:
         get_all_param_values
     )
     from lasagne.init import Normal
-    from lasagne.updates import nesterov_momentum
+    from lasagne.updates import nesterov_momentum, adam
 
 
 def row_dot(matrixA, matrixB):
