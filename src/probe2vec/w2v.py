@@ -136,7 +136,7 @@ def word2vec(
         context_embedding_init=context_embedding_init
     )
 
-    # Architectue is ready.  Make the loss function, and use it to create 
+    # Architecture is ready.  Make the loss function, and use it to create 
     # the parameter updates responsible for learning
     loss = get_noise_contrastive_loss(embedder.get_output(), batch_size)
     updates = nesterov_momentum(

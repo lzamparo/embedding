@@ -21,7 +21,6 @@ def ensure_str(s):
         return s
 
 
-# TODO: enable loading and saving
 class TokenMap(object):
 
     def __init__(self, on_unk=WARN, tokens=None):

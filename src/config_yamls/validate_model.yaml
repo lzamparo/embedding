@@ -1,0 +1,8 @@
+data_dir: ../data/selex_data/enriched/
+save_dir: ../results/selex_validation/enriched_kmers/
+load_dir: ../results/selex_test_results/dictionary/
+file_suffixes: pos.fasta
+split: 0.75
+K: 8
+stride: 4
+parser: kmerize_fasta_parse

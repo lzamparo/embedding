@@ -5,7 +5,7 @@ from probe2vec.w2v import word2vec
 from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse
 
 
-### Driver script for probe2vec
+### Driver script for training a probe2vec model
 
 # load the params from the yaml file given in sys.argv[1]
 with open(sys.argv[1]) as f:
@@ -21,15 +21,5 @@ if "fastq" in params['parser']:
 else:
     parser = kmerize_fasta_parse
 
-#selex_files = [os.path.join(data_dir, "MAFK_ESAI_TGCCTG30NTCC_4.txt.gz")]
-
-# build an embedder
+# build an embedder, save the embedder, dataset reader objects.
 embedder, dictionary = word2vec(files=selex_files, parse=parser, save_dir=selex_save_dir, k=params['K'], stride=params['stride'])
-
-# test the embedder
-
-
-# ???
-
-
-# Profit.
