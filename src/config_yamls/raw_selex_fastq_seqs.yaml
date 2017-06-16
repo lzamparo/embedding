@@ -4,3 +4,5 @@ file_suffixes: 4.txt.gz
 K: 8
 stride: 4
 parser: kmerize_fastq_parse
+really_verbose: True
+outfile: ../results/debug_output/eoferr.txt
