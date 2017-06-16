@@ -1,4 +1,5 @@
 from .noise_contrast import get_noise_contrastive_loss
+import sys
 import os
 import numpy as np
 from .dataset_reader import DatasetReader, default_parse
@@ -6,7 +7,6 @@ from .theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
 
-import os
 # Only import theano and lasagne if environment permits it
 exclude_theano_set = 'EXCLUDE_THEANO' in os.environ
 if exclude_theano_set and int(os.environ['EXCLUDE_THEANO']) == 1:
@@ -32,6 +32,13 @@ def sigmoid(tensor_var):
     return 1/(1+T.exp(-tensor_var))
 
 
+#def suppress_std():
+    #f = open('/dev/null','w')
+    #sys.stdout = f
+    
+#def establish_std():
+    #sys.stdout = 
+
 def word2vec(
 
         # Input / output options
@@ -49,7 +56,7 @@ def word2vec(
         stride=None,
 
         # Batching options
-        num_epochs=5,
+        num_epochs=10,
         batch_size = 1000,  # Number of *signal* examples per batch
         macrobatch_size = 100000,
 
@@ -73,7 +80,11 @@ def word2vec(
         momentum=0.9,
 
         # Verbosity option
-        verbose=True
+        verbose=True,
+        
+        # Really, really verbose: Write stdout, stderr to file
+        really_verbose=False,
+        outfile='../results/debug_output/eoferr.txt'
     ):
 
     '''
@@ -86,6 +97,12 @@ def word2vec(
     routine using the provided classes.  This function would be a starting
     point for you.
     '''
+    
+    # if dumping output:
+    if really_verbose:
+        my_of = open(outfile,'w')
+        sys.stdout = my_of
+        sys.stderr = my_of    
 
     # Make a Word2VecMinibatcher, pass through parameters sent by caller
     reader = DatasetReader(
@@ -183,6 +200,10 @@ def word2vec(
     if save_dir is not None:
         embedder.save(save_dir)
         reader.save_dictionary(save_dir)
+        
+    # Close really verbose file, if required
+    if really_verbose:
+        my_of.close()
 
     # Return the trained embedder and the dictionary mapping tokens
     # to ids
@@ -364,6 +385,9 @@ class Word2VecEmbedder(object):
         # We are willing to create the directory given if it doesn't exist
         if not os.path.exists(directory):
             os.mkdir(directory)
+            
+        # debug
+        print("DEBUG: saving embeddings to ", directory)
 
         # Save under the directory given in a file called "embeddings.npz'
         save_path = os.path.join(directory, "embeddings.npz")

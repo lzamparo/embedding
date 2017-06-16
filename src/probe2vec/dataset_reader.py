@@ -108,7 +108,7 @@ class DataSetReaderIllegalStateException(Exception):
     pass
 
 
-def default_parse(filename, verbose=True):
+def default_parse(filename, **kwargs):
     '''
     Parses input corpus files into a file-format-independent in-memory
     representation.  The output of this function is passed into
@@ -329,6 +329,7 @@ class DatasetReader(object):
         '''
         Delegate to the parse function given to the constructor.
         ''' 
+        # self._parse(filename, **dict(kwargs, k=self.k, stride=self.stride))
         return self._parse(filename, **dict(kwargs, k=self.k, stride=self.stride))
 
 

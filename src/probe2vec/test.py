@@ -1590,8 +1590,8 @@ class TestWord2VecOnCorpus(TestCase):
     def test_word2vec_does_pruning(self):
 
         files = [
-            'test-data/test-corpus/003.tsv',
-            'test-data/test-corpus/004.tsv'
+            '../../data/test-data/test-corpus/003.tsv',
+            '../../data/test-data/test-corpus/004.tsv'
         ]
 
         word2vec_embedder, reader = word2vec(
@@ -1625,7 +1625,7 @@ class TestWord2VecOnCorpus(TestCase):
         np.random.seed(1)
 
         word2vec_embedder, reader = word2vec(
-            files=['test-data/test-corpus/numbers-long.txt'],
+            files=['../../data/test-data/test-corpus/numbers-long.txt'],
             num_epochs=1,
             batch_size=int(1e2),
             macrobatch_size=int(1e5),
@@ -1671,6 +1671,58 @@ class TestWord2VecOnCorpus(TestCase):
             self.assertTrue(expected_tops[i-1][0] in top3_positions)
             self.assertTrue(expected_tops[i-1][1] in top3_positions)
 
+
+    def test_word2vec_on_corpus_multiepoch(self):
+
+        # Seed randomness to make the test reproducible
+        np.random.seed(1)
+
+        word2vec_embedder, reader = word2vec(
+            files=['../../data/test-data/test-corpus/numbers-long.txt'],
+            num_epochs=5,
+            batch_size=int(1e2),
+            macrobatch_size=int(1e5),
+            t=1,
+            num_embedding_dimensions=5,
+            verbose=False
+        )
+
+        W, C = word2vec_embedder.get_param_values()
+        dots = usigma(np.dot(W,C.T))
+
+        # Based on the construction of the corpus, the following
+        # context embeddings should match the query at right and be
+        # the highest value in the product of the embedding matrices
+        # Note that token 0 is reserved for UNK.  It's embedding stays
+        # near the randomly initialized value, tending to yield of 0.5
+        # which is high overall, so it turns up as a "good match" to any
+        # word
+        expected_tops = [
+            [2,3], # these contexts are good match to query 1
+            [1,3], # these contexts are good match to query 2
+            [1,2], # these contexts are good match to query 3
+            [5,6], # these contexts are good match to query 4
+            [4,6], # these contexts are good match to query 5
+            [4,5], # these contexts are good match to query 6
+            [8,9], # these contexts are good match to query 7
+            [7,9], # these contexts are good match to query 8
+            [7,8], # these contexts are good match to query 9
+            [11,12], # these contexts are good match to query 10
+            [10,12], # these contexts are good match to query 11
+            [10,11]  # these contexts are good match to query 12
+        ]
+
+        for i in range(1, 3*4+1):
+            top3 = sorted(
+                enumerate(dots[i]), key=lambda x: x[1], reverse=True
+            )[:3]
+            top3_positions = [t[0] for t in top3]
+
+            # both of the expected top matches should appear in the 
+            # top 3 (the UNK token might also be a good match, which
+            # is why we need to check the top 3, not just top 2).
+            self.assertTrue(expected_tops[i-1][0] in top3_positions)
+            self.assertTrue(expected_tops[i-1][1] in top3_positions)
 
 
 
@@ -1719,7 +1771,7 @@ class TestWord2Vec(TestCase):
         '''
 
         # Remove any saved file that may be left over from a previous run
-        save_dir = 'test-data/test-w2v-embedder'
+        save_dir = '../../data/test-data/test-w2v-embedder'
         if os.path.exists(save_dir):
             shutil.rmtree(save_dir)
 
