@@ -5,4 +5,5 @@ file_suffixes: pos.fasta
 split: 0.75
 K: 8
 stride: 4
+read_data_async: False
 parser: kmerize_fasta_parse

@@ -135,7 +135,7 @@ embedder = Word2VecEmbedder(input_var=minibatcher.get_batch(),
                             batch_size=full_batch_size,
                             vocabulary_size=reader.get_vocab_size(),
                             num_embedding_dimensions=num_embedding_dimensions)
-embedder.load(params['load_dir'])
+embedder.load(os.path.join(params['load_dir'],''))
 
 # Make the training embedding labels data set
 training_probes, testing_probes = create_valid_set(params['data_dir'], params['split'],get_positive_selex_files)

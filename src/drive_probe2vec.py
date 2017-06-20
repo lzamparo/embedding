@@ -22,4 +22,4 @@ else:
     parser = kmerize_fasta_parse
 
 # build an embedder, save the embedder, dataset reader objects.
-embedder, dictionary = word2vec(files=selex_files, parse=parser, save_dir=selex_save_dir, k=params['K'], stride=params['stride'], really_verbose=params['really_verbose'], outfile=params['outfile'])
+embedder, dictionary = word2vec(files=selex_files, parse=parser, save_dir=selex_save_dir, read_data_async=params['read_data_async'], k=params['K'], stride=params['stride'], really_verbose=params['really_verbose'], outfile=params['outfile'])
