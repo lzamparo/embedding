@@ -1,3 +1,4 @@
 *.wpr
 *.wpu
 *.pyc
+*.DS_Store
