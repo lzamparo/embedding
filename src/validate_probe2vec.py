@@ -5,6 +5,11 @@ from probe2vec.w2v import word2vec, Word2VecEmbedder
 from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, DatasetReader
 from scipy.stats import bernoulli
 
+from probe2vec.theano_minibatcher import (
+    TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
+)
+
+
 def train_valid_split(filename, split_percentage):
     ''' Split the given file into probes used for training and probes used for validation '''
 
@@ -114,8 +119,22 @@ reader = DatasetReader(files=[], directories=[], skip=[], noise_ratio=15,
                       stride=params['stride'])
     
 # load the embedder, DatasetReader objects
-embedder = Word2VecEmbedder(input_var, batch_size, 
-                           num_embedding_dimensions=200)
+batch_size = 1000
+noise_ratio=15
+num_embedding_dimensions=200
+full_batch_size = batch_size * (1 + noise_ratio)
+
+minibatcher = NoiseContrastiveTheanoMinibatcher(
+    batch_size=batch_size,
+    noise_ratio=noise_ratio,
+    dtype="int32",
+    num_dims=2
+)
+
+embedder = Word2VecEmbedder(input_var=minibatcher.get_batch(),
+                            batch_size=full_batch_size,
+                            vocabulary_size=reader.get_vocab_size(),
+                            num_embedding_dimensions=num_embedding_dimensions)
 embedder.load(params['load_dir'])
 
 # Make the training embedding labels data set
