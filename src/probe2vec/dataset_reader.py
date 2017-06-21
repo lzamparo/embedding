@@ -1,9 +1,11 @@
 import re
 import gc
 import time
+
 from iterable_queue import IterableQueue
 from multiprocessing import Process
 from subprocess import check_output
+
 from .counter_sampler import CounterSampler
 from .token_map import UNK
 from .unigram_dictionary import UnigramDictionary
