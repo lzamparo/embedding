@@ -4,4 +4,6 @@ file_suffixes: pos.fasta
 K: 8
 stride: 4
 parser: kmerize_fasta_parse
-read_data_async: False
+read_data_async: True
+really_verbose: True
+outfile: ../results/debug_output/fasta_seqs.txt

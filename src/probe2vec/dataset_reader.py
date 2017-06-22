@@ -137,7 +137,7 @@ def default_parse(filename, **kwargs):
     return tokenized_sentences
 
 
-def fastq_parser(file):
+def generate_fastq(file):
     ''' Parse and yield four line fastq records '''
     record = []
     for line in file:
@@ -149,7 +149,7 @@ def fastq_parser(file):
             record.append(line.strip())
     yield record  
     
-def fasta_parser(file):
+def generate_fasta(file):
     ''' Parse and yield two line fasta records '''
     record = []
     for line in file:
@@ -192,7 +192,7 @@ def kmerize_fasta_parse(filename, **kwargs):
     else:
         f = open(filename, mode='r', encoding='utf-8')
         
-    for fasta_record in fasta_parser(f):
+    for fasta_record in generate_fasta(f):
         try:
             ID, seq = fasta_record
         except ValueError:
@@ -234,7 +234,7 @@ def kmerize_fastq_parse(filename, **kwargs):
     else:
         f = open(filename, mode='r', encoding='utf-8')
         
-    for fastq_record in fastq_parser(f):
+    for fastq_record in generate_fastq(f):
         try:
             ID, seq, spacer, quality = fastq_record
         except ValueError:
@@ -310,7 +310,7 @@ class DatasetReader(object):
                 print('A dictionary was supplied')
             self.unigram_dictionary = unigram_dictionary
             self.prune()
-            self.prepare = True
+            self.prepared = True
 
 
     def is_prepared(self):
@@ -529,6 +529,9 @@ class DatasetReader(object):
         macrobatch_queue.close()
 
 
+    
+
+
     def generate_dataset_parallel(self, save_dir=None):
         '''
         Parallel version of generate_dataset_serial.  Each worker is 
@@ -559,6 +562,7 @@ class DatasetReader(object):
         else:
             examples_dir = None
 
+        ### Begin surgery here
         file_queue = IterableQueue()
         macrobatch_queue = IterableQueue(self.max_queue_size)
 
@@ -586,6 +590,8 @@ class DatasetReader(object):
         # Close the iterable queues
         file_queue.close()
         macrobatch_queue.close()
+
+        ### end surgery here
 
         # Retrieve the macrobatches from the workers, write them to file
         signal_macrobatches = []
