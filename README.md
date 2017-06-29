@@ -1,5 +1,5 @@
 # Embedding sequences
-Try out different embedding strategies for SELEX-seq data
+Trying out different embedding strategies for SELEX-seq data
 
 Repository structure
 
