@@ -178,7 +178,7 @@ def kmerize_fasta_parse(filename, **kwargs):
     '''
     
     # get k, stride, verbose from kwargs
-    k = kwargs.get('k',-1)
+    k = kwargs.get('K',-1)
     stride = kwargs.get('stride',-1)
     if k < 0 or stride < 0:
         raise DataSetReaderIllegalStateException("For kmerized parsing"
@@ -220,7 +220,7 @@ def kmerize_fastq_parse(filename, **kwargs):
     '''
     
     # get k, stride, verbose from kwargs
-    k = kwargs.get('k',-1)
+    k = kwargs.get('K',-1)
     stride = kwargs.get('stride',-1)
     if k < 0 or stride < 0:
         raise DataSetReaderIllegalStateException("For kmerized parsing"

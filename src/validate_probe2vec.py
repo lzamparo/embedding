@@ -10,7 +10,7 @@ from probe2vec.theano_minibatcher import (
 )
 
 
-def train_valid_split(filename, split_percentage):
+def train_valid_split(filename, data_dir, split_percentage):
     ''' Split the given file into probes used for training and probes used for validation '''
 
     def parse_sentence(kmers, d, factor):
@@ -25,11 +25,12 @@ def train_valid_split(filename, split_percentage):
     
     # parse probe in file by however they should be parsed (need extra arg)
     if filename.endswith('.gz'):
-        f = gzip.open(filename, mode='rt', encoding='utf-8')
+        f = gzip.open(os.path.join(data_dir, filename), mode='rt', encoding='utf-8')
     else:
-        f = open(filename, mode='r', encoding='utf-8')   
+        f = open(os.path.join(data_dir, filename), mode='r', encoding='utf-8')   
                  
-    tokenized_sentences = kmerize_fasta_parse(filename, params) 
+    tokenized_sentences = kmerize_fasta_parse(f, **params) 
+    f.close()
     partition = bernoulli.rvs(split_percentage,size=len(tokenized_sentences)).astype('bool').tolist()
     
     training_dict = {}
@@ -43,7 +44,8 @@ def train_valid_split(filename, split_percentage):
         parse_sentence(sentence, training_dict, factor)
     for sentence in testing_sentences:
         parse_sentence(sentence, testing_dict, factor)
-        
+     
+       
     return training_dict, testing_dict
 
 
@@ -76,13 +78,13 @@ def create_valid_set(data_dir, split_percentage, file_filter=get_positive_selex_
     
     assert(0.0 < split_percentage and split_percentage < 1.0) 
     data_files = [f for f in os.listdir(os.path.expanduser(data_dir))]
-    selex_files = file_filter(file_list)
+    selex_files = file_filter(data_files)
     
     training_probes = {}
     testing_probes = {}
     
     for f in selex_files:
-        f_train, f_test = train_valid_split(f, split_percentage)
+        f_train, f_test = train_valid_split(f, data_dir, split_percentage)
         update_factor_dict(training_probes,f_train)
         update_factor_dict(testing_probes,f_test)
     

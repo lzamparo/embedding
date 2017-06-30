@@ -1,6 +1,6 @@
 data_dir: ../data/selex_data/enriched/
 save_dir: ../results/selex_validation/enriched_kmers/
-load_dir: ../results/selex_test_results/
+load_dir: ../results/selex_test_results/enriched_kmers/
 file_suffixes: pos.fasta
 split: 0.75
 K: 8
