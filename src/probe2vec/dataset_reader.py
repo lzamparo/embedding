@@ -775,8 +775,10 @@ class DatasetReader(object):
         if save_dir is not None:
             self.check_access(save_dir)
 
+        t0 = timer()
         self.preparation(**kwargs)
-        
+        t1 = timer()
+        print("Serial unigram preparation took: ", (t1 - t0)*1000, " seconds" )
 
         # Save the dictionary, if requested to do so.
         if save_dir is not None:
