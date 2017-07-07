@@ -1,0 +1,11 @@
+data_dir: ../data/selex_data/raw_seqs/
+save_dir: ../results/selex_test_results/raw_seqs/
+file_suffixes: 4.txt.gz
+K: 8
+stride: 1
+parser: kmerize_fastq_parse
+read_data_async: True
+really_verbose: True
+outfile: ../results/debug_output/fulldata_k_8_s_1.txt
+num_processes: 8
+timing: True
