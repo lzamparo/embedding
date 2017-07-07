@@ -6,6 +6,6 @@ stride: 1
 parser: kmerize_fastq_parse
 read_data_async: True
 really_verbose: True
-outfile: ../results/debug_output/fulldata_k_8_s_1.txt
+outfile: ../results/unigram_dict_loading_exps/fulldata_k_8_s_1.txt
 num_processes: 8
 timing: True
