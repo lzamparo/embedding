@@ -727,7 +727,7 @@ class DatasetReader(object):
             
         # submit jobs to the worker processes    
         with ProcessPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(generate_token_worker, filename, **kwargs) for filename in all_files]
+            futures = [executor.submit(self.generate_token_worker, filename, **kwargs) for filename in all_files]
             for future in as_completed(futures):
                 self.unigram_dictionary.update(future.result())
         
