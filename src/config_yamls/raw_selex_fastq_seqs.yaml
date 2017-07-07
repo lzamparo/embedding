@@ -5,6 +5,6 @@ K: 6
 stride: 1
 parser: kmerize_fastq_parse
 really_verbose: False
-read_data_async: False
+read_data_async: True
 outfile: ../results/debug_output/eoferr.txt
 timing: True
