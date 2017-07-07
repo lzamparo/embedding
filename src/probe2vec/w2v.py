@@ -2,6 +2,7 @@ from .noise_contrast import get_noise_contrastive_loss
 import sys
 import os
 import numpy as np
+from timeit import default_timer as timer
 from .dataset_reader import DatasetReader, default_parse
 from .theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
@@ -81,9 +82,10 @@ def word2vec(
 
         # Verbosity option
         verbose=True,
+        timing=True,
         
         # Really, really verbose: Write stdout, stderr to file
-        really_verbose=False,
+        stdout_to_file=False,
         outfile='../results/debug_output/eoferr.txt'
     ):
 
@@ -99,7 +101,7 @@ def word2vec(
     '''
     
     # if dumping output:
-    if really_verbose:
+    if stdout_to_file:
         my_of = open(outfile,'w')
         sys.stdout = my_of
         sys.stderr = my_of    
@@ -128,7 +130,7 @@ def word2vec(
     if not reader.is_prepared():
         if verbose:
             print('preparing dictionaries...')
-        reader_kwargs = {'verbose': verbose, 'save_dir': save_dir}    
+        reader_kwargs = {'verbose': verbose, 'save_dir': save_dir, 'K': k, 'stride': stride}    
         reader.prepare(**reader_kwargs)
 
     # Make a symbolic minibatcher
@@ -190,11 +192,13 @@ def word2vec(
             minibatcher.load_dataset(signal_macrobatch, noise_macrobatch)
             losses = []
             for batch_num in range(minibatcher.get_num_batches()):
-                if verbose:
-                    print('running minibatch', batch_num)
+                t0 = timer()
                 losses.append(train())
+                t1 = timer()
+                if timing:
+                    print('running minibatch', batch_num, ' took ', (t1 - t0) * 1000, " micro seconds")                
             if verbose:
-                print('\taverage loss: %f' % np.mean(losses))
+                print('\tmacrobatch average loss: %f' % np.mean(losses))
 
     # Save the model (the embeddings) if save_dir was provided
     if save_dir is not None:
@@ -202,7 +206,7 @@ def word2vec(
         reader.save_dictionary(save_dir)
         
     # Close really verbose file, if required
-    if really_verbose:
+    if stdout_to_file:
         my_of.close()
 
     # Return the trained embedder and the dictionary mapping tokens

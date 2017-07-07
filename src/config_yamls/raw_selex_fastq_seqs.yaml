@@ -1,9 +1,10 @@
 data_dir: ../data/selex_data/raw_seqs/
 save_dir: ../results/selex_test_results/raw_seqs/
 file_suffixes: 4.txt.gz
-K: 8
-stride: 4
+K: 6
+stride: 1
 parser: kmerize_fastq_parse
-really_verbose: True
+really_verbose: False
 read_data_async: False
 outfile: ../results/debug_output/eoferr.txt
+timing: True

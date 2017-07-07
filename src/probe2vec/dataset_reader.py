@@ -1,6 +1,7 @@
 import re
 import gc
-import time
+from timeit import default_timer as timer
+import random
 
 from iterable_queue import IterableQueue
 from multiprocessing import Process
@@ -13,6 +14,9 @@ import numpy as np
 import os
 import sys
 import gzip
+
+from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import as_completed
 
 
 class TokenChooser(object):
@@ -60,7 +64,7 @@ class TokenChooser(object):
 
         # If the token is near the edges of the context, then the
         # sampling kernel will be truncated (we can't sample before the
-        # firs word in the sentence, or after the last word).
+        # first word in the sentence, or after the last word).
         # Determine the slice indices that define the truncated kernel.
         negative_idx = length - idx
         start = max(0, self.K - idx)
@@ -68,7 +72,7 @@ class TokenChooser(object):
 
         # We make a separate multinomial sampler for each different
         # truncation of the kernel, because they each define a different
-        # set of sampling probabilityes.  If we don't have a sampler for
+        # set of sampling probabilities.  If we don't have a sampler for
         # this particular kernel shape, make one.
         if not (start, stop) in self.samplers:
 
@@ -247,6 +251,49 @@ def kmerize_fastq_parse(filename, **kwargs):
     return tokenized_sentences
 
 
+def generate_kmerized_fastq_parse(filename, **kwargs):
+    '''
+    Parses input from fastq but yields the parsed records in batches
+    rather than just a whole list.
+    
+    
+    '''
+    # get k, stride, verbose from kwargs
+    k = kwargs.get('K',-1)
+    stride = kwargs.get('stride',-1)
+    batch_size = kwargs.get('batch_size',100)
+    if k < 0 or stride < 0:
+        raise DataSetReaderIllegalStateException("For kmerized parsing"
+                                                 "k must be > 0 and "
+                                                 "stride must be > 0")
+    
+    tokenized_sentences_batch = []
+    
+    if filename.endswith('.gz'):
+        f = gzip.open(filename, mode='rt', encoding='utf-8')
+    else:
+        f = open(filename, mode='r', encoding='utf-8')
+        
+    for fastq_record in generate_fastq(f):
+        try:
+            ID, seq, spacer, quality = fastq_record
+        except ValueError:
+            fastq_str = "\n".join(fastq_record)
+            print("Got a malformed fastq record in ", filename, " : ", fastq_str)
+            continue
+        tokenized_sentences_batch.append(kmerize(seq, k, stride))
+        
+        while len(tokenized_sentences_batch) > batch_size:
+            yield tokenized_sentences_batch
+            tokenized_sentences_batch = []
+    
+    if len(tokenized_sentences_batch) > 0:
+        yield tokenized_sentences_batch
+        
+    f.close()    
+    
+        
+
 def kmerize(line, k, stride):
     '''
     Parses the sequences into kmers, using stride
@@ -265,13 +312,13 @@ class DatasetReader(object):
         skip=[],
         noise_ratio=15,
         t=1e-5,
-        num_processes=3,
+        num_processes=8,
         unigram_dictionary=None,
         min_frequency=0,
         kernel=[1,2,3,4,5,5,4,3,2,1],
         load_dictionary_dir=None,
         max_queue_size=0,
-        macrobatch_size=20000,
+        macrobatch_size=2000,
         parse=default_parse,
         verbose=True,
         k=None,
@@ -332,7 +379,10 @@ class DatasetReader(object):
         Delegate to the parse function given to the constructor.
         ''' 
         # self._parse(filename, **dict(kwargs, k=self.k, stride=self.stride))
-        return self._parse(filename, **dict(kwargs, k=self.k, stride=self.stride))
+        if kwargs.get('K') is None or kwargs.get('stride') is None:
+            kwargs['K'] = self.k
+            kwargs['stride'] = self.stride
+        return self._parse(filename, **kwargs)
 
 
     def check_access(self, save_dir):
@@ -399,7 +449,10 @@ class DatasetReader(object):
                 if any([s.search(dirname) for s in self.skip]):
                     continue
 
-                for filename in os.listdir(dirname):
+                # Randomize the ordering of the files!
+                myfiles = os.listdir(dirname)
+                random.shuffle(myfiles)
+                for filename in myfiles:
                     filename = os.path.join(dirname, filename)
 
                     # Only process the *files* under the given directories
@@ -431,8 +484,7 @@ class DatasetReader(object):
         return examples
 
 
-    # TODO: this should be called 'produce macrobatches'
-    def generate_macrobatches(self, filename_iterator):
+    def produce_macrobatches(self, filename_iterator):
 
         '''
         Assembles bunches of examples from the parsed data coming from
@@ -449,7 +501,10 @@ class DatasetReader(object):
         signal_examples = []
         noise_examples = []
 
+        t0 = timer()
         examples = self.generate_examples(filename_iterator)
+        t1 = timer()
+        print("Time to generate this set of examples took ", (t1 - t0) * 1000, " microseconds")
         for signal_chunk, noise_chunk in examples:
 
             signal_examples.extend(signal_chunk)
@@ -514,22 +569,20 @@ class DatasetReader(object):
 
         # Generate the data for each file
         file_iterator = self.generate_filenames()
-        macrobatches = self.generate_macrobatches(file_iterator)
+        macrobatches = self.produce_macrobatches(file_iterator)
         for signal_examples, noise_examples in macrobatches:
             yield signal_examples, noise_examples
 
 
     def generate_dataset_worker(self, file_iterator, macrobatch_queue):
-        macrobatches = self.generate_macrobatches(file_iterator)
+        macrobatches = self.produce_macrobatches(file_iterator)
         for signal_examples, noise_examples in macrobatches:
             if self.verbose:
                 print('sending macrobatch to parent process')
             macrobatch_queue.put((signal_examples, noise_examples))
 
         macrobatch_queue.close()
-
-
-    
+ 
 
 
     def generate_dataset_parallel(self, save_dir=None):
@@ -592,10 +645,7 @@ class DatasetReader(object):
         macrobatch_queue.close()
 
         ### end surgery here
-
-        # Retrieve the macrobatches from the workers, write them to file
-        signal_macrobatches = []
-        noise_macrobatches = []
+     
         for signal_macrobatch, noise_macrobatch in macrobatch_consumer:
 
             if self.verbose:
@@ -661,7 +711,30 @@ class DatasetReader(object):
         ))
 
 
-    def preparation(self, save_dir, min_frequency=None, **kwargs):
+    def generate_token_worker(self, file_iterator, **kwargs):
+        tokens = self.parse(file_iterator, **kwargs)
+        return tokens
+    
+    def preparation_parallel(self, **kwargs):
+        '''
+        Read through the corpus, building the UnigramDictionary in parallel,
+        in the same manner as generate_dataset_parallel
+    
+        '''
+        
+        # get all the files
+        all_files = [filename for filename in self.generate_filenames()]
+            
+        # submit jobs to the worker processes    
+        with ProcessPoolExecutor(max_workers=10) as executor:
+            futures = [executor.submit(generate_token_worker, filename, **kwargs) for filename in all_files]
+            for future in as_completed(futures):
+                self.unigram_dictionary.update(future.result())
+        
+        self.prepared = True
+    
+
+    def preparation(self, **kwargs):
 
         # Read through the corpus, building the UnigramDictionary
         for filename in self.generate_filenames():
@@ -671,7 +744,7 @@ class DatasetReader(object):
         self.prepared = True
 
 
-    def prepare(self, save_dir=None, *args, **kwargs):
+    def prepare(self, *args, **kwargs):
         '''
         Used to perform any preparation steps that are needed before
         minibatching can be done.  E.g. assembling a dictionary that
@@ -698,10 +771,12 @@ class DatasetReader(object):
 
         # Before doing anything, if we were requested to save the
         # dictionary, make sure we'll be able to do that (fail fast)
+        save_dir = kwargs.get('save_dir', None)
         if save_dir is not None:
             self.check_access(save_dir)
 
-        self.preparation(save_dir, *args, **kwargs)
+        self.preparation(**kwargs)
+        
 
         # Save the dictionary, if requested to do so.
         if save_dir is not None:
@@ -736,8 +811,6 @@ class DatasetReader(object):
         chooser = TokenChooser(K=len(self.kernel) // 2, kernel=self.kernel)
         
         # include parsing kwargs that were part of the declaration of this reader
-        
-
         for filename in filename_iterator:
 
             # Parse the file, then generate a bunch of examples from it

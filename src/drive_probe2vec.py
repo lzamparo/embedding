@@ -16,10 +16,15 @@ data_dir = os.path.abspath(params['data_dir'])
 selex_save_dir = os.path.abspath(params['save_dir'])
 selex_files = [os.path.join(data_dir,f) for f in os.listdir(data_dir) if f.endswith(params['file_suffixes'])]
 
+if "load_dir" in params.keys():
+    load_dir = params['load_dir']
+else:
+    load_dir = None
+
 if "fastq" in params['parser']:
     parser = kmerize_fastq_parse
 else:
     parser = kmerize_fasta_parse
 
 # build an embedder, save the embedder, dataset reader objects.
-embedder, dictionary = word2vec(files=selex_files, parse=parser, save_dir=selex_save_dir, read_data_async=params['read_data_async'], k=params['K'], stride=params['stride'], really_verbose=params['really_verbose'], outfile=params['outfile'])
+embedder, dictionary = word2vec(files=selex_files, parse=parser, save_dir=selex_save_dir, load_dictionary_dir=load_dir, read_data_async=params['read_data_async'], k=params['K'], stride=params['stride'], stdout_to_file=params['really_verbose'], timing=params['timing'], outfile=params['outfile'])
