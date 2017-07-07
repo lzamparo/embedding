@@ -769,16 +769,25 @@ class DatasetReader(object):
         * [None]
         '''
 
-        # Before doing anything, if we were requested to save the
-        # dictionary, make sure we'll be able to do that (fail fast)
+        
         save_dir = kwargs.get('save_dir', None)
+        read_async = kwargs.get('read_async', False)
+        
+        # Before doing anything, if we were requested to save the
+        # dictionary, make sure we'll be able to do that (fail fast)        
         if save_dir is not None:
             self.check_access(save_dir)
 
-        t0 = timer()
-        self.preparation(**kwargs)
-        t1 = timer()
-        print("Serial unigram preparation took: ", (t1 - t0)*1000, " seconds" )
+        if not read_async:
+            t0 = timer()
+            self.preparation(**kwargs)
+            t1 = timer()
+            print("Serial unigram preparation took: ", (t1 - t0)*1000, " seconds" )
+        else:
+            t0 = timer()
+            self.preparation_parallel(**kwargs)
+            t1 = timer()
+            print("Parallel unigram preparation took: ", (t1 - t0)*1000, " seconds" )            
 
         # Save the dictionary, if requested to do so.
         if save_dir is not None:
