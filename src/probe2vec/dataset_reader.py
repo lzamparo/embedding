@@ -15,7 +15,7 @@ import os
 import sys
 import gzip
 
-from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
 
 
@@ -312,7 +312,7 @@ class DatasetReader(object):
         skip=[],
         noise_ratio=15,
         t=1e-5,
-        num_processes=8,
+        num_processes=3,
         unigram_dictionary=None,
         min_frequency=0,
         kernel=[1,2,3,4,5,5,4,3,2,1],
@@ -726,7 +726,7 @@ class DatasetReader(object):
         all_files = [filename for filename in self.generate_filenames()]
             
         # submit jobs to the worker processes    
-        with ThreadPoolExecutor(max_workers=5) as executor:
+        with ProcessPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(self.generate_token_worker, filename, **kwargs) for filename in all_files]
             for future in as_completed(futures):
                 self.unigram_dictionary.update(future.result())

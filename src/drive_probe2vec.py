@@ -16,7 +16,7 @@ data_dir = os.path.abspath(params['data_dir'])
 selex_save_dir = os.path.abspath(params['save_dir'])
 selex_files = [os.path.join(data_dir,f) for f in os.listdir(data_dir) if f.endswith(params['file_suffixes'])]
 load_dir = params.get('load_dir',None)
-num_processes = params.get('num_processes', 4)
+num_processes = params.get('num_processes', 3)
 
 if "fastq" in params['parser']:
     parser = kmerize_fastq_parse
