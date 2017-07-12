@@ -39,8 +39,8 @@ reader = DatasetReader(
 if not reader.is_prepared():
     if verbose:
         print('preparing dictionaries...')
-    reader_kwargs = {'verbose': verbose, 'save_dir': save_dir, 'K': k, 'stride': stride, 'read_async': read_data_async}    
+    reader_kwargs = {'verbose': verbose, 'save_dir': selex_save_dir, 'K': params['K'], 'stride': params['stride'], 'read_async': params['read_data_async']}    
     reader.prepare(**reader_kwargs)
     
 # Save the dictionary
-reader.save_dictionary(save_dir)
+reader.save_dictionary(selex_save_dir)
