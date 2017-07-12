@@ -2,7 +2,7 @@ import sys
 import os
 import yaml
 from probe2vec.w2v import word2vec
-from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, DatasetReader
+from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, generate_kmerized_fastq_parse, DatasetReader
 
 
 ### Driver script for building a dictionary and token chooser model

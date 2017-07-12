@@ -2,10 +2,11 @@ import re
 import gc
 from timeit import default_timer as timer
 import random
+import logging
 
 from iterable_queue import IterableQueue
 from multiprocessing import Process
-from subprocess import check_output
+
 
 from .counter_sampler import CounterSampler
 from .token_map import UNK
@@ -17,6 +18,9 @@ import gzip
 
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
+
+mpl = multiprocessing.log_to_stderr()
+mpl.setLevel(logging.INFO)
 
 
 class TokenChooser(object):
@@ -726,7 +730,7 @@ class DatasetReader(object):
         all_files = [filename for filename in self.generate_filenames()]
             
         # submit jobs to the worker processes    
-        with ProcessPoolExecutor(max_workers=5) as executor:
+        with ProcessPoolExecutor(max_workers=self.num_processes) as executor:
             futures = [executor.submit(self.generate_token_worker, filename, **kwargs) for filename in all_files]
             for future in as_completed(futures):
                 self.unigram_dictionary.update(future.result())
