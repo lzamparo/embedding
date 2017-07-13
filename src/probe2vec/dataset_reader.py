@@ -7,6 +7,8 @@ import logging
 from iterable_queue import IterableQueue
 from multiprocessing import Process
 
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from collections import Counter
 
 from .counter_sampler import CounterSampler
 from .token_map import UNK
@@ -15,12 +17,6 @@ import numpy as np
 import os
 import sys
 import gzip
-
-from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures import as_completed
-
-mpl = multiprocessing.log_to_stderr()
-mpl.setLevel(logging.INFO)
 
 
 class TokenChooser(object):
@@ -716,14 +712,18 @@ class DatasetReader(object):
 
 
     def generate_token_worker(self, file_iterator, **kwargs):
-        tokens = self.parse(file_iterator, **kwargs)
-        return tokens
+        '''
+        Enumerate all tokens in the file_iterator in a collections.Counter
+        '''
+        c = Counter()
+        for tokens in self.parse(file_iterator, **kwargs):
+            c.update(tokens)
+        return c
     
     def preparation_parallel(self, **kwargs):
         '''
         Read through the corpus, building the UnigramDictionary in parallel,
-        in the same manner as generate_dataset_parallel
-    
+        in the same manner as generate_dataset_parallel.
         '''
         
         # get all the files
@@ -732,8 +732,10 @@ class DatasetReader(object):
         # submit jobs to the worker processes    
         with ProcessPoolExecutor(max_workers=self.num_processes) as executor:
             futures = [executor.submit(self.generate_token_worker, filename, **kwargs) for filename in all_files]
+            
             for future in as_completed(futures):
-                self.unigram_dictionary.update(future.result())
+                countr = future.result()
+                self.unigram_dictionary.update_counts(countr.items())
         
         self.prepared = True
     
