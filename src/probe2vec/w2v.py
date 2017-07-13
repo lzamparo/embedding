@@ -58,8 +58,8 @@ def word2vec(
 
         # Batching options
         num_epochs=10,
-        batch_size = 1000,  # Number of *signal* examples per batch
-        macrobatch_size = 100000,
+        batch_size = 100,  # Number of *signal* examples per batch
+        macrobatch_size = 16000,
 
         # Dictionary options
         unigram_dictionary=None,

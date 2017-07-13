@@ -318,7 +318,7 @@ class DatasetReader(object):
         kernel=[1,2,3,4,5,5,4,3,2,1],
         load_dictionary_dir=None,
         max_queue_size=0,
-        macrobatch_size=2000,
+        macrobatch_size=16000,
         parse=default_parse,
         verbose=True,
         k=None,
