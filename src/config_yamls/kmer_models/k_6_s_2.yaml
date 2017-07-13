@@ -1,0 +1,12 @@
+data_dir: ../data/selex_data/raw_seqs/
+save_dir: ../results/selex_test_results/raw_seqs/k_6_s_2
+load_dir: ../results/selex_test_results/raw_seqs/k_6_s_2
+file_suffixes: 4.txt.gz
+K: 6
+stride: 2
+parser: kmerize_fastq_parse
+read_data_async: True
+really_verbose: True
+outfile: ../results/kmer_models/full_data_k_6_s_2.txt
+num_processes: 4
+timing: True
