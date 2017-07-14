@@ -1,5 +1,6 @@
 import re
 import gc
+import time
 from timeit import default_timer as timer
 import random
 import logging
@@ -580,7 +581,7 @@ class DatasetReader(object):
             if self.verbose:
                 print('sending macrobatch to parent process')
             macrobatch_queue.put((signal_examples, noise_examples))
-
+        time.sleep(1.0)  ### trying to fix BrokenPipe error from not being able to put before the process dies and macrobatch_queue is wrapped up ###
         macrobatch_queue.close()
  
 
@@ -615,7 +616,6 @@ class DatasetReader(object):
         else:
             examples_dir = None
 
-        ### Begin surgery here
         file_queue = IterableQueue()
         macrobatch_queue = IterableQueue(self.max_queue_size)
 
@@ -643,8 +643,6 @@ class DatasetReader(object):
         # Close the iterable queues
         file_queue.close()
         macrobatch_queue.close()
-
-        ### end surgery here
      
         for signal_macrobatch, noise_macrobatch in macrobatch_consumer:
 
@@ -653,6 +651,8 @@ class DatasetReader(object):
 
             yield signal_macrobatch, noise_macrobatch
 
+        # Explicitly close up macrobatch_consumer, which hopefully fixes the EOFError 
+        macrobatch_consumer.close()
 
     def get_vocab_size(self):
         '''
