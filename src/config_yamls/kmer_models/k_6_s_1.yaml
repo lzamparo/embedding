@@ -8,5 +8,6 @@ parser: kmerize_fastq_parse
 read_data_async: True
 really_verbose: False
 outfile: ../results/kmer_models/full_data_k_6_s_1.txt
-num_processes: 4
+num_processes: 2
+macrobatch_size: 100000
 timing: True

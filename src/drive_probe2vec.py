@@ -17,6 +17,7 @@ selex_save_dir = os.path.abspath(params['save_dir'])
 selex_files = [os.path.join(data_dir,f) for f in os.listdir(data_dir) if f.endswith(params['file_suffixes'])]
 load_dir = params.get('load_dir',None)
 num_processes = params.get('num_processes', 3)
+mb_size = params.get('macrobatch_size', 100000)
 
 if "fastq" in params['parser']:
     parser = kmerize_fastq_parse
@@ -33,4 +34,5 @@ embedder, dictionary = word2vec(files=selex_files,
                                 k=params['K'], stride=params['stride'], 
                                 stdout_to_file=params['really_verbose'], 
                                 timing=params['timing'], 
-                                outfile=params['outfile'])
+                                outfile=params['outfile'],
+                                macrobatch_size=mb_size)
