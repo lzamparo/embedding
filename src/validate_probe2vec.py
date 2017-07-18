@@ -4,6 +4,7 @@ import yaml
 from probe2vec.w2v import word2vec, Word2VecEmbedder
 from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, DatasetReader
 from scipy.stats import bernoulli
+from collections import Counter
 
 from probe2vec.theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
@@ -34,19 +35,19 @@ def train_valid_split(filename, data_dir, split_percentage):
     partition = bernoulli.rvs(split_percentage,size=len(tokenized_sentences)).astype('bool').tolist()
     
     training_dict = {}
-    testing_dict = {}
+    validation_dict = {}
     
     #training_dict = {parse_sentence(sentence) for sentence, indicator in zip(tokenized_sentences, partition) if indicator}
     training_sentences = [s for s,i in zip(tokenized_sentences,partition) if i]
-    testing_sentences = [s for s,i in zip(tokenized_sentences,partition) if not i]
+    validation_sentences = [s for s,i in zip(tokenized_sentences,partition) if not i]
     
     for sentence in training_sentences:        
         parse_sentence(sentence, training_dict, factor)
-    for sentence in testing_sentences:
-        parse_sentence(sentence, testing_dict, factor)
+    for sentence in validation_sentences:
+        parse_sentence(sentence, validation_dict, factor)
      
        
-    return training_dict, testing_dict
+    return training_dict, validation_dict
 
 
 def get_positive_selex_files(file_list):
@@ -67,11 +68,12 @@ def update_factor_dict(d, update_d):
             d[k] = update_d[k]
         else:
             d[k].extend(update_d[k])
+            
     
 def create_valid_set(data_dir, split_percentage, file_filter=get_positive_selex_files):
     ''' Parse the data files in the given directory into a certain percentage for embedding a 
     labeled set of probes for given factors (training_probes), and the remainder for measuring the 
-    accuracy of this embedding (testing_probes). 
+    accuracy of this embedding (validation_probes). 
     
     data_dir: string.  Directory containing the data to be embedded. 
     split_percentage: float.  Percentage to be used for labeleing embedded probes. '''
@@ -81,16 +83,18 @@ def create_valid_set(data_dir, split_percentage, file_filter=get_positive_selex_
     selex_files = file_filter(data_files)
     
     training_probes = {}
-    testing_probes = {}
+    validation_probes = {}
     
     for f in selex_files:
-        f_train, f_test = train_valid_split(f, data_dir, split_percentage)
+        f_train, f_valid = train_valid_split(f, data_dir, split_percentage)
         update_factor_dict(training_probes,f_train)
-        update_factor_dict(testing_probes,f_test)
+        update_factor_dict(validation_probes,f_valid)
     
-    # Transform values of training_probes, testing_probes to ordered list of tuples
+    # Transform values of training_probes, validation_probes to ordered list of tuples
+    training_kmers_factor_counts = {k: Counter(v) for k,v in training_probes.items()}
+    validation_kmers_factor_counts = {k: Counter(v) for k,v in validation_probes.items()}
     
-    return training_probes, testing_probes
+    return training_kmers_factor_counts, validation_kmers_factor_counts
 
 
 # load the params from the yaml file given in sys.argv[1]
@@ -139,8 +143,8 @@ embedder = Word2VecEmbedder(input_var=minibatcher.get_batch(),
                             num_embedding_dimensions=num_embedding_dimensions)
 embedder.load(os.path.join(params['load_dir'],''))
 
-# Make the training embedding labels data set
-training_probes, testing_probes = create_valid_set(params['data_dir'], params['split'],get_positive_selex_files)
+# Make the training, validation embedding labels data sets
+training_probes, validation_probes = create_valid_set(params['data_dir'], params['split'],get_positive_selex_files)
 
 # Make the test embedding labels data set 
 
