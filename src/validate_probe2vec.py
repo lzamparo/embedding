@@ -25,13 +25,7 @@ def train_valid_split(filename, data_dir, split_percentage):
     factor = filename.split('_')[0]
     
     # parse probe in file by however they should be parsed (need extra arg)
-    if filename.endswith('.gz'):
-        f = gzip.open(os.path.join(data_dir, filename), mode='rt', encoding='utf-8')
-    else:
-        f = open(os.path.join(data_dir, filename), mode='r', encoding='utf-8')   
-                 
-    tokenized_sentences = kmerize_fasta_parse(f, **params) 
-    f.close()
+    tokenized_sentences = kmerize_fasta_parse(os.path.join(data_dir,filename), **params) 
     partition = bernoulli.rvs(split_percentage,size=len(tokenized_sentences)).astype('bool').tolist()
     
     training_dict = {}
@@ -105,6 +99,7 @@ with open(os.path.expanduser(sys.argv[1])) as f:
 data_dir = os.path.abspath(params['data_dir'])
 selex_save_dir = os.path.abspath(params['save_dir'])
 selex_files = [os.path.join(data_dir,f) for f in os.listdir(data_dir) if f.endswith(params['file_suffixes'])]
+split = params.get('split', 0.75)
 
 if "fastq" in params['parser']:
     parser = kmerize_fastq_parse
@@ -117,7 +112,7 @@ reader = DatasetReader(files=[], directories=[], skip=[], noise_ratio=15,
                       unigram_dictionary=None, 
                       min_frequency=0, kernel=[1, 2, 3, 
                       4, 5, 5, 4, 3, 2, 1], 
-                      load_dictionary_dir=params['load_dir'], 
+                      load_dictionary_dir=params['save_dir'], 
                       max_queue_size=0, 
                       macrobatch_size=20000, 
                       parse=parser, 
@@ -141,13 +136,14 @@ embedder = Word2VecEmbedder(input_var=minibatcher.get_batch(),
                             batch_size=full_batch_size,
                             vocabulary_size=reader.get_vocab_size(),
                             num_embedding_dimensions=num_embedding_dimensions)
-embedder.load(os.path.join(params['load_dir'],''))
+embedder.load(os.path.join(params['save_dir'],''))
 
 # Make the training, validation embedding labels data sets
-training_probes, validation_probes = create_valid_set(params['data_dir'], params['split'],get_positive_selex_files)
+training_probes, validation_probes = create_valid_set(params['data_dir'],split, get_positive_selex_files)
 
-# Make the test embedding labels data set 
-
+# Embed training data 
+training_tokens = [reader.unigram_dictionary.get_id(token) for token in training_probes.keys()]
+embedded_data = [embedder.embed(token_id) for token_id in training_tokens]
 
 # Compute the top-k accuracy loss for the given embedder, probes, labels
 
