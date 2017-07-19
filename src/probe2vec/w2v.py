@@ -57,7 +57,7 @@ def word2vec(
         stride=None,
 
         # Batching options
-        num_epochs=10,
+        num_epochs = 10,
         batch_size = 1000,  # Number of *signal* examples per batch
         macrobatch_size = 100000,
 
@@ -130,7 +130,7 @@ def word2vec(
     if not reader.is_prepared():
         if verbose:
             print('preparing dictionaries...')
-        reader_kwargs = {'verbose': verbose, 'save_dir': save_dir, 'K': k, 'stride': stride}    
+        reader_kwargs = {'verbose': verbose, 'save_dir': save_dir, 'K': k, 'stride': stride, 'read_async': read_data_async}    
         reader.prepare(**reader_kwargs)
 
     # Make a symbolic minibatcher

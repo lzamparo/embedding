@@ -1,0 +1,11 @@
+data_dir: ../data/selex_data/raw_seqs/
+save_dir: ../results/selex_test_results/raw_seqs/k_8_s_1_serial
+file_suffixes: 4.txt.gz
+K: 8
+stride: 1
+parser: kmerize_fastq_parse
+read_data_async: False
+really_verbose: True
+outfile: ../results/unigram_dict_loading_exps/full_data_k_8_s_1.serial.txt
+num_processes: 8
+timing: True

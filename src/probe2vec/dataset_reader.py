@@ -1,11 +1,15 @@
 import re
 import gc
+import time
 from timeit import default_timer as timer
 import random
+import logging
 
 from iterable_queue import IterableQueue
 from multiprocessing import Process
-from subprocess import check_output
+
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from collections import Counter
 
 from .counter_sampler import CounterSampler
 from .token_map import UNK
@@ -14,9 +18,6 @@ import numpy as np
 import os
 import sys
 import gzip
-
-from concurrent.futures import ProcessPoolExecutor
-from concurrent.futures import as_completed
 
 
 class TokenChooser(object):
@@ -312,13 +313,13 @@ class DatasetReader(object):
         skip=[],
         noise_ratio=15,
         t=1e-5,
-        num_processes=8,
+        num_processes=3,
         unigram_dictionary=None,
         min_frequency=0,
         kernel=[1,2,3,4,5,5,4,3,2,1],
         load_dictionary_dir=None,
         max_queue_size=0,
-        macrobatch_size=2000,
+        macrobatch_size=16000,
         parse=default_parse,
         verbose=True,
         k=None,
@@ -580,7 +581,7 @@ class DatasetReader(object):
             if self.verbose:
                 print('sending macrobatch to parent process')
             macrobatch_queue.put((signal_examples, noise_examples))
-
+            time.sleep(10.0)  ### trying to fix BrokenPipe error from not being able to put before the process dies and macrobatch_queue is wrapped up ###
         macrobatch_queue.close()
  
 
@@ -615,7 +616,6 @@ class DatasetReader(object):
         else:
             examples_dir = None
 
-        ### Begin surgery here
         file_queue = IterableQueue()
         macrobatch_queue = IterableQueue(self.max_queue_size)
 
@@ -643,8 +643,6 @@ class DatasetReader(object):
         # Close the iterable queues
         file_queue.close()
         macrobatch_queue.close()
-
-        ### end surgery here
      
         for signal_macrobatch, noise_macrobatch in macrobatch_consumer:
 
@@ -653,6 +651,8 @@ class DatasetReader(object):
 
             yield signal_macrobatch, noise_macrobatch
 
+        # Explicitly close up macrobatch_consumer, which hopefully fixes the EOFError 
+        macrobatch_consumer.close()
 
     def get_vocab_size(self):
         '''
@@ -712,24 +712,30 @@ class DatasetReader(object):
 
 
     def generate_token_worker(self, file_iterator, **kwargs):
-        tokens = self.parse(file_iterator, **kwargs)
-        return tokens
+        '''
+        Enumerate all tokens in the file_iterator in a collections.Counter
+        '''
+        c = Counter()
+        for tokens in self.parse(file_iterator, **kwargs):
+            c.update(tokens)
+        return c
     
     def preparation_parallel(self, **kwargs):
         '''
         Read through the corpus, building the UnigramDictionary in parallel,
-        in the same manner as generate_dataset_parallel
-    
+        in the same manner as generate_dataset_parallel.
         '''
         
         # get all the files
         all_files = [filename for filename in self.generate_filenames()]
             
         # submit jobs to the worker processes    
-        with ProcessPoolExecutor(max_workers=10) as executor:
-            futures = [executor.submit(generate_token_worker, filename, **kwargs) for filename in all_files]
+        with ProcessPoolExecutor(max_workers=self.num_processes) as executor:
+            futures = [executor.submit(self.generate_token_worker, filename, **kwargs) for filename in all_files]
+            
             for future in as_completed(futures):
-                self.unigram_dictionary.update(future.result())
+                countr = future.result()
+                self.unigram_dictionary.update_counts(countr.items())
         
         self.prepared = True
     
@@ -769,14 +775,25 @@ class DatasetReader(object):
         * [None]
         '''
 
-        # Before doing anything, if we were requested to save the
-        # dictionary, make sure we'll be able to do that (fail fast)
+        
         save_dir = kwargs.get('save_dir', None)
+        read_async = kwargs.get('read_async', False)
+        
+        # Before doing anything, if we were requested to save the
+        # dictionary, make sure we'll be able to do that (fail fast)        
         if save_dir is not None:
             self.check_access(save_dir)
 
-        self.preparation(**kwargs)
-        
+        if not read_async:
+            t0 = timer()
+            self.preparation(**kwargs)
+            t1 = timer()
+            print("Serial unigram preparation took: ", (t1 - t0)*1000, " seconds" )
+        else:
+            t0 = timer()
+            self.preparation_parallel(**kwargs)
+            t1 = timer()
+            print("Parallel unigram preparation took: ", (t1 - t0)*1000, " seconds" )            
 
         # Save the dictionary, if requested to do so.
         if save_dir is not None:

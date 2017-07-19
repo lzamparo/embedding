@@ -3,8 +3,8 @@ save_dir: ../results/selex_test_results/raw_seqs/
 file_suffixes: 4.txt.gz
 K: 6
 stride: 1
-parser: kmerize_fastq_parse
+parser: generate_kmerize_fastq_parse
 really_verbose: False
-read_data_async: False
-outfile: ../results/debug_output/eoferr.txt
+read_data_async: True
+outfile: ../results/debug_output/generating_kmerized_seqs.txt
 timing: True

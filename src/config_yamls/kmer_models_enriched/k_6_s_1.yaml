@@ -1,0 +1,13 @@
+data_dir: ../data/selex_data/enriched/
+save_dir: ../results/selex_test_results/enriched_seqs/k_6_s_1/
+load_dir: ../results/selex_test_results/enriched_seqs/k_6_s_1/
+file_suffixes: pos.fasta
+K: 6
+stride: 1
+parser: kmerize_fasta_parse
+read_data_async: True
+really_verbose: True
+outfile: ../results/kmer_models/enriched_fasta_k_6_s_1.txt
+num_processes: 2
+macrobatch_size: 100000
+timing: True
