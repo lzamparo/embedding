@@ -200,10 +200,10 @@ def word2vec(
             if verbose:
                 print('\tmacrobatch average loss: %f' % np.mean(losses))
 
-    # Save the model (the embeddings) if save_dir was provided
-    if save_dir is not None:
-        embedder.save(save_dir)
-        reader.save_dictionary(save_dir)
+        # Save the model (the embeddings) if save_dir was provided
+        if save_dir is not None:
+            embedder.save(save_dir)
+            reader.save_dictionary(save_dir)
         
     # Close really verbose file, if required
     if stdout_to_file:
