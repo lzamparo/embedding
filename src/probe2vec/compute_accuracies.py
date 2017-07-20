@@ -9,37 +9,38 @@ def build_index(n_hidden, embedder, tokens, n_trees=30):
     for token in tokens:
         # get embedding vector for each token, add to index
         token_vec = embedder.embed(token)
-        index.add_item(token, token_vec)
+        index.add_item(token, reshape_to_vector(token_vec, n_hidden))
 
     index.build(n_trees)
     return index
 
-def most_similar(vector, reader, index, num_neighbors):
-    ''' Find and return the top-N most similar tokens '''
-    # TODO: how can I use the distances (which seem to be cosine)
-    ids, distances = index.get_nns_by_vector(
-        vector, num_neighbors, include_distances=True)
-    return [(reader.unigram_dictionary.get_token(ids[i]), 1 - distances[i] / 2) for i in range(len(ids))]
+def most_similar(token_ID, reader, index, num_neighbors):
+    ''' Given an ID, get the token IDs of the top-N most similar tokens according to the embedding '''
+    # TODO: how can I use the distances?? (which seem to be cosine)
     
+    ids, distances = index.get_nns_by_item(
+        token_ID, num_neighbors, include_distances=True)
+    return [(reader.unigram_dictionary.get_token(ids[i]), 1 - distances[i] / 2) for i in range(len(ids))]
+
+def reshape_to_vector(array, dim):
+    ''' Embedded tokens come back as arrays.  Reshape to vector for use in conjunction with annoy '''
+    return array.reshape((dim,))
+    
+def merge_counters(input_list, token_counter_dict):
+    ''' Merge the counters associated with the tokens in given a list of (token, distance) tuples '''
+    if isinstance(input_list[0], tuple):
+        counters_list = [token_counter_dict[t] for t,d in input_list]
+    else:
+        counters_list = input_list
+    top_tokens = counters_list[0]
+    for c in counters_list[1:]:
+        top_tokens = top_tokens + c    
+    return top_tokens
 
 def get_top_k_factors(tokenized_list, index, embedder, unigram_dict, n=5):
     ''' Return the factors associated with the nearest k-mers for the tokenization of
     the given probe '''
-    # tokenized list of k-mers -> ids -> vectors
-    
-    # find k tokens corresponding to nearest vectors to each probe
-    closest_n_ids = [most_similar()]
-    # closest_n_tokens = [get the token for each id]
-    # update the counter
-    
-    
-    # collect Counters associated count of factor(s) associated with each of those tokens to list
-    
-    # sort list by Counter, return top-k
-
-
-#    use something like gensim.models.keyedvectors.most_similar() to 
-#    find the k tokens corresponding to the k nearest vectors for this probe
+    pass
 
 
 

@@ -1,16 +1,17 @@
 import sys
 import os
 import yaml
+import pickle
+
 from probe2vec.w2v import word2vec, Word2VecEmbedder
 from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, DatasetReader
-from scipy.stats import bernoulli
-from collections import Counter
-
-from probe2vec.compute_accuracies import build_index, get_top_k_factors
-
+from probe2vec.compute_accuracies import build_index, most_similar, merge_counters, reshape_to_vector
 from probe2vec.theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
+
+from scipy.stats import bernoulli
+from collections import Counter
 
 
 def train_valid_split(filename, data_dir, split_percentage):
@@ -84,7 +85,7 @@ def create_valid_set(data_dir, split_percentage, file_filter=get_positive_selex_
         validation_sentences.extend(f_valid)
     
     # Transform values of training_probes to ordered list of tuples
-    training_kmers_factor_counts = {k: Counter(v) for k,v in training_probes.items()}
+    training_kmers_factor_counts = {k: Counter(v) for k,v in training_kmers.items()}
     
     return training_kmers_factor_counts, validation_sentences
 
@@ -98,6 +99,7 @@ data_dir = os.path.abspath(params['data_dir'])
 selex_save_dir = os.path.abspath(params['save_dir'])
 selex_files = [os.path.join(data_dir,f) for f in os.listdir(data_dir) if f.endswith(params['file_suffixes'])]
 split = params.get('split', 0.75)
+top_n = 5
 
 if "fastq" in params['parser']:
     parser = kmerize_fastq_parse
@@ -137,16 +139,33 @@ embedder = Word2VecEmbedder(input_var=minibatcher.get_batch(),
 embedder.load(os.path.join(params['save_dir'],''))
 
 # Make the training, validation embedding label data sets
+print("Splitting into training, validation probe sentences")
 training_kmers, validation_sentences = create_valid_set(params['data_dir'],split, get_positive_selex_files, params['K'],params['stride'])
 
 # Embed training data 
-training_tokens_ids, training_tokens = [(reader.unigram_dictionary.get_id(token),token) for token in training_probes.keys()]
-index_tree = build_index(n_hidden=embedder.num_embedding_dimensions, embedder, training_tokens_ids)
+print("Embedding training probes, building NN tree")
+training_tokens_ids = [reader.unigram_dictionary.get_id(token) for token in training_kmers.keys()]
+index_tree = build_index(embedder.num_embedding_dimensions, embedder, training_tokens_ids)
 
-# Find 
-
-# Compute the top-k accuracy loss for the given embedder, probes, labels
-
+# Compute the most associated factor, and top-5 most associated factor accuracy loss for the given embedder,
+# validation probes, training_kmers
+per_factor_probe_accuracy = {}
+print("Computing list of aggregated 5-nn factors")
+for factor, sentence in validation_sentences:
+    # get the NN tokens, distances for each kmer in the sentence
+    sentence_token_ids = [reader.unigram_dictionary.get_id(token) for token in sentence]
+    top_n_tokens_by_sentence = [most_similar(t, reader, index_tree, top_n) for t in sentence_token_ids]
+    merged_counter_list = [merge_counters(l, training_kmers) for l in top_n_tokens_by_sentence]
+    merged_counter = merge_counters(merged_counter_list, training_kmers)
+    
+    if factor not in per_factor_probe_accuracy:
+        per_factor_probe_accuracy[factor] = [merged_counter]
+    else:
+        per_factor_probe_accuracy[factor].append(merged_counter)
+    
+print("Done, pickling to params['save_dir']")    
+# save the factor dict to params['save_dir']    
+pickle.dump(per_factor_probe_accuracy, open(os.path.join(params['save_dir'],'factor_validation_dict.pkl'),'wb'))
 
 
     
