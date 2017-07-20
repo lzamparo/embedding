@@ -64,7 +64,7 @@ def word2vec(
         # Dictionary options
         unigram_dictionary=None,
         load_dictionary_dir=None,
-        min_frequency=2,
+        min_frequency=0,
 
         # Sampling options
         noise_ratio=15,
