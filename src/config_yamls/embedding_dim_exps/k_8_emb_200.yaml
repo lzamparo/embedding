@@ -1,0 +1,15 @@
+data_dir: ../data/selex_data/enriched/
+save_dir: ../results/embedding_size/k_8_emb_200
+load_dir: ../results/embedding_size/k_8_emb_200
+file_suffixes: pos.fasta
+K: 8
+stride: 1
+parser: kmerize_fasta_parse
+read_data_async: True
+really_verbose: True
+outfile: ../results/embedding_size/enriched_fasta_k_8_emb_200.txt
+num_processes: 2
+timing: True
+macrobatch_size: 100000
+num_embedding_dimensions: 200
+num_epochs: 20
