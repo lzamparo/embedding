@@ -300,9 +300,17 @@ def kmerize(line, k, stride):
     Parses the sequences into kmers, using stride
     '''
     line = line.strip()
-    kmerized = [line[i:i + k] for i in range(0, len(line) - k, stride)]
+    kmerized = [line[i:i + k] for i in range(0, len(line) - k + 1, stride)]
     return kmerized
 
+def rejoin_to_probe(kmer_list, k, stride):
+    '''
+    Re-joins the kmerized sentence into its original probe
+    '''
+    tojoin = [kmer_list[0]]
+    for j in kmerized_test[1:]:
+        tojoin.append(j[k-stride:])
+    return ''.join(tojoin) 
 
 class DatasetReader(object):
 

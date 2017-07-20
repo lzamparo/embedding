@@ -6,6 +6,8 @@ from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, D
 from scipy.stats import bernoulli
 from collections import Counter
 
+from probe2vec.compute_accuracies import build_index, get_top_k_factors
+
 from probe2vec.theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
@@ -20,28 +22,25 @@ def train_valid_split(filename, data_dir, split_percentage):
                 d[kmer] = [factor]
             else:
                 d[kmer].append(factor)
+                
 
     # extract factor from filename
     factor = filename.split('_')[0]
     
     # parse probe in file by however they should be parsed (need extra arg)
+    # and split randomly into training and validation sentences
     tokenized_sentences = kmerize_fasta_parse(os.path.join(data_dir,filename), **params) 
     partition = bernoulli.rvs(split_percentage,size=len(tokenized_sentences)).astype('bool').tolist()
     
     training_dict = {}
-    validation_dict = {}
     
-    #training_dict = {parse_sentence(sentence) for sentence, indicator in zip(tokenized_sentences, partition) if indicator}
     training_sentences = [s for s,i in zip(tokenized_sentences,partition) if i]
-    validation_sentences = [s for s,i in zip(tokenized_sentences,partition) if not i]
+    validation_sentences = [(factor, s) for s,i in zip(tokenized_sentences,partition) if not i]
     
     for sentence in training_sentences:        
         parse_sentence(sentence, training_dict, factor)
-    for sentence in validation_sentences:
-        parse_sentence(sentence, validation_dict, factor)
-     
-       
-    return training_dict, validation_dict
+        
+    return training_dict, validation_sentences
 
 
 def get_positive_selex_files(file_list):
@@ -64,10 +63,10 @@ def update_factor_dict(d, update_d):
             d[k].extend(update_d[k])
             
     
-def create_valid_set(data_dir, split_percentage, file_filter=get_positive_selex_files):
+def create_valid_set(data_dir, split_percentage, file_filter=get_positive_selex_files, k=6, stride=1):
     ''' Parse the data files in the given directory into a certain percentage for embedding a 
     labeled set of probes for given factors (training_probes), and the remainder for measuring the 
-    accuracy of this embedding (validation_probes). 
+    accuracy of this embedding (validation_sentences). 
     
     data_dir: string.  Directory containing the data to be embedded. 
     split_percentage: float.  Percentage to be used for labeleing embedded probes. '''
@@ -76,19 +75,18 @@ def create_valid_set(data_dir, split_percentage, file_filter=get_positive_selex_
     data_files = [f for f in os.listdir(os.path.expanduser(data_dir))]
     selex_files = file_filter(data_files)
     
-    training_probes = {}
-    validation_probes = {}
+    training_kmers = {}
+    validation_sentences = []
     
     for f in selex_files:
         f_train, f_valid = train_valid_split(f, data_dir, split_percentage)
-        update_factor_dict(training_probes,f_train)
-        update_factor_dict(validation_probes,f_valid)
+        update_factor_dict(training_kmers,f_train)
+        validation_sentences.extend(f_valid)
     
-    # Transform values of training_probes, validation_probes to ordered list of tuples
+    # Transform values of training_probes to ordered list of tuples
     training_kmers_factor_counts = {k: Counter(v) for k,v in training_probes.items()}
-    validation_kmers_factor_counts = {k: Counter(v) for k,v in validation_probes.items()}
     
-    return training_kmers_factor_counts, validation_kmers_factor_counts
+    return training_kmers_factor_counts, validation_sentences
 
 
 # load the params from the yaml file given in sys.argv[1]
@@ -138,12 +136,14 @@ embedder = Word2VecEmbedder(input_var=minibatcher.get_batch(),
                             num_embedding_dimensions=num_embedding_dimensions)
 embedder.load(os.path.join(params['save_dir'],''))
 
-# Make the training, validation embedding labels data sets
-training_probes, validation_probes = create_valid_set(params['data_dir'],split, get_positive_selex_files)
+# Make the training, validation embedding label data sets
+training_kmers, validation_sentences = create_valid_set(params['data_dir'],split, get_positive_selex_files, params['K'],params['stride'])
 
 # Embed training data 
-training_tokens = [reader.unigram_dictionary.get_id(token) for token in training_probes.keys()]
-embedded_data = [embedder.embed(token_id) for token_id in training_tokens]
+training_tokens_ids, training_tokens = [(reader.unigram_dictionary.get_id(token),token) for token in training_probes.keys()]
+index_tree = build_index(n_hidden=embedder.num_embedding_dimensions, embedder, training_tokens_ids)
+
+# Find 
 
 # Compute the top-k accuracy loss for the given embedder, probes, labels
 
