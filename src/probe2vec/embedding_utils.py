@@ -43,7 +43,6 @@ def get_top_k_factors(tokenized_list, index, embedder, unigram_dict, n=5):
     pass
 
 
-
 def get_top_k_loss(activation):
     ''' For all probes in this batch of the validation set, return the top_k_loss '''
     pass

@@ -5,7 +5,7 @@ import pickle
 
 from probe2vec.w2v import word2vec, Word2VecEmbedder
 from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, DatasetReader
-from probe2vec.compute_accuracies import build_index, most_similar, merge_counters, reshape_to_vector
+from probe2vec.embedding_utils import build_index, most_similar, merge_counters, reshape_to_vector
 from probe2vec.theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
