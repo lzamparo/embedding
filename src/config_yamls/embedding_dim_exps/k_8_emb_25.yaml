@@ -1,6 +1,5 @@
 data_dir: ../data/selex_data/enriched/
 save_dir: ../results/embedding_size/k_8_emb_25
-load_dir: ../results/embedding_size/k_8_emb_25
 file_suffixes: pos.fasta
 K: 8
 stride: 1
@@ -12,4 +11,4 @@ num_processes: 2
 timing: True
 macrobatch_size: 100000
 num_embedding_dimensions: 25
-num_epochs: 20
+num_epochs: 40

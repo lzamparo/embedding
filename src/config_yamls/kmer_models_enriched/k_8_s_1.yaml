@@ -1,6 +1,5 @@
 data_dir: ../data/selex_data/enriched/
 save_dir: ../results/enriched/k_8_s_1
-load_dir: ../results/enriched/k_8_s_1
 file_suffixes: pos.fasta
 K: 8
 stride: 1
