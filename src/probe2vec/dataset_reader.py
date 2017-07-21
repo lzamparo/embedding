@@ -437,6 +437,8 @@ class DatasetReader(object):
 
         # Process the files listed in `files`, unles matches entry in skip
         if self.files is not None:
+            # Randomize the ordering of the files!
+            random.shuffle(self.files)   
             for filename in self.files:
                 filename = os.path.abspath(filename)
 
