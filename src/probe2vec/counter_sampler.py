@@ -33,6 +33,7 @@ class CounterSampler(object):
             raise ValueError('Counts must be an iterable of integers')
         self.counts = list(counts)
         self.sampler_ready = False
+        self.num_to_load = 1
 
 
     def remove(self, idx):
@@ -117,7 +118,12 @@ class CounterSampler(object):
         For sampling contexts in each sentence for training,
         this means sampling positions within the boundaries
         
+        [Ed: some strange things here: what is _ptr meant to be?
+        Looks like it keeps track of a pointer to a list within a 
+        sample.  Maybe calling out to np.random.choice is expensive?
         
+        
+        will self._ptr ever be >= len(self.np_sample)?]
         '''
         if shape is not None:
             size = np.prod(shape)
