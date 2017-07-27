@@ -20,6 +20,8 @@ num_processes = params.get('num_processes', 3)
 mb_size = params.get('macrobatch_size', 100000)
 num_embedding_dimensions  = params.get('num_embedding_dimensions', 100)
 num_epochs = params.get('num_epochs',20)
+kernel = params.get('kernel', [1,2,3,4,5,5,4,3,2,1])
+
 
 if "fastq" in params['parser']:
     parser = kmerize_fastq_parse
@@ -33,6 +35,7 @@ embedder, dictionary = word2vec(files=selex_files,
                                 load_dictionary_dir=load_dir,
                                 num_processes=num_processes,
                                 num_epochs=num_epochs,
+                                kernel=kernel,
                                 num_embedding_dimensions=num_embedding_dimensions,
                                 read_data_async=params['read_data_async'], 
                                 k=params['K'], stride=params['stride'], 

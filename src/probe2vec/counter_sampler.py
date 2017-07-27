@@ -44,7 +44,7 @@ class CounterSampler(object):
     def compact(self):
         '''
         Remake the conts list, eliminating `None`s which are holes
-        left by calls to `remvoe()`.
+        left by calls to `remove()`.
         '''
         self.counts = [c for c in self.counts if c is not None]
 
@@ -105,9 +105,20 @@ class CounterSampler(object):
         return self.total
 
 
-    num_to_load = 10**5
     def sample(self, shape=None):
-
+        '''
+        Sample from this CounterSampler.  Returns a number
+        of token positions (:= np.prod(`shape`), or simply 1) 
+        at which to sample
+        
+        For sampling tokens from the corpus, this samples over
+        the whole vocabulary of unigrams.
+        
+        For sampling contexts in each sentence for training,
+        this means sampling positions within the boundaries
+        
+        
+        '''
         if shape is not None:
             size = np.prod(shape)
         else:
