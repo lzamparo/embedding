@@ -33,7 +33,8 @@ class CounterSampler(object):
             raise ValueError('Counts must be an iterable of integers')
         self.counts = list(counts)
         self.sampler_ready = False
-        self.num_to_load = 1
+        self.num_to_load =   10**5
+        
 
 
     def remove(self, idx):
