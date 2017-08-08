@@ -1,5 +1,7 @@
 import os
 from annoy import AnnoyIndex
+import gzip
+from .dataset_reader import DataSetReaderIllegalStateException
 
 # build annoy index tree
 def build_index(n_hidden, embedder, tokens, n_trees=30):
@@ -13,6 +15,16 @@ def build_index(n_hidden, embedder, tokens, n_trees=30):
 
     index.build(n_trees)
     return index
+
+def get_top_k_factors(tokenized_list, index, embedder, unigram_dict, n=5):
+    ''' Return the factors associated with the nearest k-mers for the tokenization of
+    the given probe '''
+    pass
+
+
+def get_top_k_loss(activation):
+    ''' For all probes in this batch of the validation set, return the top_k_loss '''
+    pass
 
 def most_similar(token_ID, reader, index, num_neighbors):
     ''' Given an ID, get the token IDs of the top-N most similar tokens according to the embedding '''
@@ -37,13 +49,221 @@ def merge_counters(input_list, token_counter_dict):
         top_tokens = top_tokens + c    
     return top_tokens
 
-def get_top_k_factors(tokenized_list, index, embedder, unigram_dict, n=5):
-    ''' Return the factors associated with the nearest k-mers for the tokenization of
-    the given probe '''
-    pass
+
+class SequenceParser(object):
+    
+    def __init__(self, args, **kwargs):
+        '''
+        Not sure if it makes sense to pass in the type of parser here,
+        but will keep an dict.update for the time being.
+        '''
+        self.__dict__.update(kwargs)
+          
+
+    def rejoin_to_probe(self, kmer_list, k, stride):
+        '''
+        Re-joins the kmerized sentence into its original probe
+        '''
+        tojoin = [kmer_list[0]]
+        for j in kmerized_test[1:]:
+            tojoin.append(j[k-stride:])
+        return ''.join(tojoin) 
+
+    def kmerize(self, line, k, stride):
+        '''
+        Parses the sequences into kmers, using stride
+        '''
+        line = line.strip()
+        kmerized = [line[i:i + k] for i in range(0, len(line) - k + 1, stride)]
+        return kmerized
+
+    def generate_kmerized_fastq_parse(self, filename, **kwargs):
+        '''
+        Parses input from fastq but yields the parsed records in batches
+        rather than just a whole list.
+        '''
+        
+        # get k, stride, verbose from kwargs
+        k = kwargs.get('K',-1)
+        stride = kwargs.get('stride',-1)
+        batch_size = kwargs.get('batch_size',100)
+        if k < 0 or stride < 0:
+            raise DataSetReaderIllegalStateException("For kmerized parsing"
+                                                     "k must be > 0 and "
+                                                     "stride must be > 0")
+        
+        tokenized_sentences_batch = []
+        
+        if filename.endswith('.gz'):
+            f = gzip.open(filename, mode='rt', encoding='utf-8')
+        else:
+            f = open(filename, mode='r', encoding='utf-8')
+            
+        for fastq_record in self.generate_fastq(f):
+            try:
+                ID, seq, spacer, quality = fastq_record
+            except ValueError:
+                fastq_str = "\n".join(fastq_record)
+                print("Got a malformed fastq record in ", filename, " : ", fastq_str)
+                continue
+            tokenized_sentences_batch.append(dataset_reader.kmerize(seq, k, stride))
+            
+            while len(tokenized_sentences_batch) > batch_size:
+                yield tokenized_sentences_batch
+                tokenized_sentences_batch = []
+        
+        if len(tokenized_sentences_batch) > 0:
+            yield tokenized_sentences_batch
+            
+        f.close()    
+        
+
+    def kmerize_fastq_parse(self, filename, **kwargs):
+        '''
+        Parses input from fastq a fastq encoded corpus files into a 
+        file-format independent  in-memory representation.  The output
+        of this function is passed into `build_examples` for any 
+        processing that is needed, irrespective of file format, to 
+        generate examples from the stored data.
+    
+        INPUTS
+        * filename [str]: path to corpus file to be read
+    
+        RETURNS
+        * [any]: representation of training data.
+        '''
+        
+        # get k, stride, verbose from kwargs
+        k = kwargs.get('K',-1)
+        stride = kwargs.get('stride',-1)
+        if k < 0 or stride < 0:
+            raise DataSetReaderIllegalStateException("For kmerized parsing"
+                                                     "k must be > 0 and "
+                                                     "stride must be > 0")
+        
+        tokenized_sentences = []
+        
+        if filename.endswith('.gz'):
+            f = gzip.open(filename, mode='rt', encoding='utf-8')
+        else:
+            f = open(filename, mode='r', encoding='utf-8')
+            
+        for fastq_record in self.generate_fastq(f):
+            try:
+                ID, seq, spacer, quality = fastq_record
+            except ValueError:
+                fastq_str = "\n".join(fastq_record)
+                print("Got a malformed fastq record in ", filename, " : ", fastq_str)
+                continue
+            tokenized_sentences.append(self.kmerize(seq, k, stride))
+            
+        f.close()
+        return tokenized_sentences
 
 
-def get_top_k_loss(activation):
-    ''' For all probes in this batch of the validation set, return the top_k_loss '''
-    pass
+
+    def kmerize_fasta_parse(self, filename, **kwargs):
+        '''
+        Parses input from fastq a fasta encoded corpus files into a 
+        file-format independent  in-memory representation.  The output
+        of this function is passed into `build_examples` for any 
+        processing that is needed, irrespective of file format, to 
+        generate examples from the stored data.
+    
+        INPUTS
+        * filename [str]: path to corpus file to be read
+    
+        RETURNS
+        * [any]: representation of training data.
+        '''
+        
+        # get k, stride, verbose from kwargs
+        k = kwargs.get('K',-1)
+        stride = kwargs.get('stride',-1)
+        if k < 0 or stride < 0:
+            raise DataSetReaderIllegalStateException("For kmerized parsing"
+                                                     "k must be > 0 and "
+                                                     "stride must be > 0")
+        
+        tokenized_sentences = []
+        
+        if filename.endswith('.gz'):
+            f = gzip.open(filename, mode='rt', encoding='utf-8')
+        else:
+            f = open(filename, mode='r', encoding='utf-8')
+            
+        for fasta_record in self.generate_fasta(f):
+            try:
+                ID, seq = fasta_record
+            except ValueError:
+                fasta_str = "\n".join(fasta_record)
+                print("Got a malformed fastq record in ", filename, " : ", fasta_str)
+                continue
+            tokenized_sentences.append(self.kmerize(seq, k, stride))
+            
+        f.close()
+        return tokenized_sentences    
+
+
+    def generate_fasta(self, file):
+        ''' Parse and yield two line fasta records '''
+        record = []
+        for line in file:
+            if line.startswith(">"):
+                if record:
+                    yield record
+                record = [line.strip()]
+            else:
+                record.append(line.strip())
+        yield record
+        
+        
+
+    def generate_fastq(self, file):
+        ''' Parse and yield four line fastq records '''
+        record = []
+        for line in file:
+            if line.startswith("@HISEQ"):
+                if record:
+                    yield record
+                record = [line.strip()]
+            else:
+                record.append(line.strip())
+        yield record  
+      
+
+    def default_parse(self, filename, **kwargs):
+        '''
+        Parses input corpus files into a file-format-independent in-memory
+        representation.  The output of this function is passed into
+        `build_examples` for any processing that is needed, irrespective of
+        file format, to generate examples form the stored data.
+    
+        INPUTS
+        * filename [str]: path to a corpus file to be read
+    
+        RETURNS
+        * [any]: file-format-independent representation of training data.
+        '''
+        tokenized_sentences = []
+        
+        if filename.endswith('.gz'):
+            f = gzip.open(filename,encoding='utf-8')
+        else:
+            f = open(filename, encoding='utf-8')
+            
+        for line in f:
+            tokenized_sentences.append(line.strip().split())
+            
+        f.close()
+        return tokenized_sentences
+
+
+    
+    
+        
+        
+
+
+
 

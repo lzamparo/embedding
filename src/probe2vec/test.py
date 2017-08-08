@@ -13,6 +13,8 @@ from .theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
 from .counter_sampler import CounterSampler
+from .embedding_utils import SequenceParser
+
 from lasagne.init import Normal
 from lasagne.updates import nesterov_momentum
 import re
@@ -27,6 +29,23 @@ from six.moves import zip
 def sigma(a):
     return 1/(1+np.exp(-a))
 usigma = np.vectorize(sigma)
+
+
+class TestSequenceParser(TestCase):
+    '''
+    Tests that the SequenceParser properly parses
+    sequences and all that.
+    '''
+
+    def test_reverse_complement(self):
+        '''
+        Test the reverse complementer
+        '''
+        sp = 
+        fwd = 'TCGAACGT'
+        rev = self.reverse_comp(fwd)
+        rev_fixture = 'ACGTTCGA'
+        self.assertEqual(rev, rev_fixture)    
 
 
 class TestUnigramDictionary(TestCase):
@@ -1023,7 +1042,6 @@ class TestDataReader(TestCase):
             verbose=False
         )
         self.assertEqual(reader.get_vocab_size(), 7)
-
 
 
     def test_illegal_state_exception(self):

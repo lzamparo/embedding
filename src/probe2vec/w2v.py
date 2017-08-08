@@ -3,7 +3,9 @@ import sys
 import os
 import numpy as np
 from timeit import default_timer as timer
-from .dataset_reader import DatasetReader, default_parse
+from .dataset_reader import DatasetReader
+from .embedding_utils import SequenceParser
+
 from .theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
@@ -22,6 +24,7 @@ else:
     )
     from lasagne.init import Normal
     from lasagne.updates import nesterov_momentum, adam
+from . import embedding_utils
 
 
 def row_dot(matrixA, matrixB):
@@ -50,7 +53,7 @@ def word2vec(
         read_data_async=True,
         num_processes=3,
         max_queue_size=0,
-        parse=default_parse,
+        parse=embedding_utils.SequenceParser.default_parse,
         
         # Parsing options
         k=None,

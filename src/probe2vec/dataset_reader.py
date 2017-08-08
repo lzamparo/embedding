@@ -14,10 +14,13 @@ from collections import Counter
 from .counter_sampler import CounterSampler
 from .token_map import UNK
 from .unigram_dictionary import UnigramDictionary
+from .embedding_utils import SequenceParser
+
 import numpy as np
 import os
 import sys
 import gzip
+from . import embedding_utils
 
 
 class TokenChooser(object):
@@ -115,203 +118,6 @@ class DataSetReaderIllegalStateException(Exception):
     pass
 
 
-def default_parse(filename, **kwargs):
-    '''
-    Parses input corpus files into a file-format-independent in-memory
-    representation.  The output of this function is passed into
-    `build_examples` for any processing that is needed, irrespective of
-    file format, to generate examples form the stored data.
-
-    INPUTS
-    * filename [str]: path to a corpus file to be read
-
-    RETURNS
-    * [any]: file-format-independent representation of training data.
-    '''
-    tokenized_sentences = []
-    
-    if filename.endswith('.gz'):
-        f = gzip.open(filename,encoding='utf-8')
-    else:
-        f = open(filename, encoding='utf-8')
-        
-    for line in f:
-        tokenized_sentences.append(line.strip().split())
-        
-    f.close()
-    return tokenized_sentences
-
-
-def generate_fastq(file):
-    ''' Parse and yield four line fastq records '''
-    record = []
-    for line in file:
-        if line.startswith("@HISEQ"):
-            if record:
-                yield record
-            record = [line.strip()]
-        else:
-            record.append(line.strip())
-    yield record  
-    
-def generate_fasta(file):
-    ''' Parse and yield two line fasta records '''
-    record = []
-    for line in file:
-        if line.startswith(">"):
-            if record:
-                yield record
-            record = [line.strip()]
-        else:
-            record.append(line.strip())
-    yield record
-    
-    
-def kmerize_fasta_parse(filename, **kwargs):
-    '''
-    Parses input from fastq a fasta encoded corpus files into a 
-    file-format independent  in-memory representation.  The output
-    of this function is passed into `build_examples` for any 
-    processing that is needed, irrespective of file format, to 
-    generate examples from the stored data.
-
-    INPUTS
-    * filename [str]: path to corpus file to be read
-
-    RETURNS
-    * [any]: representation of training data.
-    '''
-    
-    # get k, stride, verbose from kwargs
-    k = kwargs.get('K',-1)
-    stride = kwargs.get('stride',-1)
-    if k < 0 or stride < 0:
-        raise DataSetReaderIllegalStateException("For kmerized parsing"
-                                                 "k must be > 0 and "
-                                                 "stride must be > 0")
-    
-    tokenized_sentences = []
-    
-    if filename.endswith('.gz'):
-        f = gzip.open(filename, mode='rt', encoding='utf-8')
-    else:
-        f = open(filename, mode='r', encoding='utf-8')
-        
-    for fasta_record in generate_fasta(f):
-        try:
-            ID, seq = fasta_record
-        except ValueError:
-            fasta_str = "\n".join(fasta_record)
-            print("Got a malformed fastq record in ", filename, " : ", fasta_str)
-            continue
-        tokenized_sentences.append(kmerize(seq, k, stride))
-        
-    f.close()
-    return tokenized_sentences    
-
-def kmerize_fastq_parse(filename, **kwargs):
-    '''
-    Parses input from fastq a fastq encoded corpus files into a 
-    file-format independent  in-memory representation.  The output
-    of this function is passed into `build_examples` for any 
-    processing that is needed, irrespective of file format, to 
-    generate examples from the stored data.
-
-    INPUTS
-    * filename [str]: path to corpus file to be read
-
-    RETURNS
-    * [any]: representation of training data.
-    '''
-    
-    # get k, stride, verbose from kwargs
-    k = kwargs.get('K',-1)
-    stride = kwargs.get('stride',-1)
-    if k < 0 or stride < 0:
-        raise DataSetReaderIllegalStateException("For kmerized parsing"
-                                                 "k must be > 0 and "
-                                                 "stride must be > 0")
-    
-    tokenized_sentences = []
-    
-    if filename.endswith('.gz'):
-        f = gzip.open(filename, mode='rt', encoding='utf-8')
-    else:
-        f = open(filename, mode='r', encoding='utf-8')
-        
-    for fastq_record in generate_fastq(f):
-        try:
-            ID, seq, spacer, quality = fastq_record
-        except ValueError:
-            fastq_str = "\n".join(fastq_record)
-            print("Got a malformed fastq record in ", filename, " : ", fastq_str)
-            continue
-        tokenized_sentences.append(kmerize(seq, k, stride))
-        
-    f.close()
-    return tokenized_sentences
-
-
-def generate_kmerized_fastq_parse(filename, **kwargs):
-    '''
-    Parses input from fastq but yields the parsed records in batches
-    rather than just a whole list.
-    
-    
-    '''
-    # get k, stride, verbose from kwargs
-    k = kwargs.get('K',-1)
-    stride = kwargs.get('stride',-1)
-    batch_size = kwargs.get('batch_size',100)
-    if k < 0 or stride < 0:
-        raise DataSetReaderIllegalStateException("For kmerized parsing"
-                                                 "k must be > 0 and "
-                                                 "stride must be > 0")
-    
-    tokenized_sentences_batch = []
-    
-    if filename.endswith('.gz'):
-        f = gzip.open(filename, mode='rt', encoding='utf-8')
-    else:
-        f = open(filename, mode='r', encoding='utf-8')
-        
-    for fastq_record in generate_fastq(f):
-        try:
-            ID, seq, spacer, quality = fastq_record
-        except ValueError:
-            fastq_str = "\n".join(fastq_record)
-            print("Got a malformed fastq record in ", filename, " : ", fastq_str)
-            continue
-        tokenized_sentences_batch.append(kmerize(seq, k, stride))
-        
-        while len(tokenized_sentences_batch) > batch_size:
-            yield tokenized_sentences_batch
-            tokenized_sentences_batch = []
-    
-    if len(tokenized_sentences_batch) > 0:
-        yield tokenized_sentences_batch
-        
-    f.close()    
-    
-        
-
-def kmerize(line, k, stride):
-    '''
-    Parses the sequences into kmers, using stride
-    '''
-    line = line.strip()
-    kmerized = [line[i:i + k] for i in range(0, len(line) - k + 1, stride)]
-    return kmerized
-
-def rejoin_to_probe(kmer_list, k, stride):
-    '''
-    Re-joins the kmerized sentence into its original probe
-    '''
-    tojoin = [kmer_list[0]]
-    for j in kmerized_test[1:]:
-        tojoin.append(j[k-stride:])
-    return ''.join(tojoin) 
-
 class DatasetReader(object):
 
     def __init__(
@@ -328,7 +134,7 @@ class DatasetReader(object):
         load_dictionary_dir=None,
         max_queue_size=0,
         macrobatch_size=16000,
-        parse=default_parse,
+        parse=embedding_utils.SequenceParser.default_parse,
         verbose=True,
         k=None,
         stride=None
@@ -387,7 +193,6 @@ class DatasetReader(object):
         '''
         Delegate to the parse function given to the constructor.
         ''' 
-        # self._parse(filename, **dict(kwargs, k=self.k, stride=self.stride))
         if kwargs.get('K') is None or kwargs.get('stride') is None:
             kwargs['K'] = self.k
             kwargs['stride'] = self.stride
