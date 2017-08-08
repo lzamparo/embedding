@@ -1,7 +1,6 @@
 import os
 from annoy import AnnoyIndex
 import gzip
-from .dataset_reader import DataSetReaderIllegalStateException
 
 # build annoy index tree
 def build_index(n_hidden, embedder, tokens, n_trees=30):
@@ -50,15 +49,33 @@ def merge_counters(input_list, token_counter_dict):
     return top_tokens
 
 
+class SequenceParserException(Exception):
+    '''
+    Used if the SequenceParser methods are called incorrectly, e.g using a 
+    kmerized parser but not specifying K, or an improper specification of 
+    'K' or 'stride'.
+    '''
+    pass
+    
 class SequenceParser(object):
     
-    def __init__(self, args, **kwargs):
+    def __init__(self, **kwargs):
         '''
-        Not sure if it makes sense to pass in the type of parser here,
-        but will keep an dict.update for the time being.
+        Initialize the parser as a kmerizing parser of fastq files,
+        fasta files, or space delimited word sentences.
         '''
-        self.__dict__.update(kwargs)
-          
+        file_type = kwargs.get('parser', None)
+        self.K = kwargs.get('K', None)
+        self.stride = kwargs.get('stride', None)
+        
+        if file_type is not None and 'fastq' in file_type:
+            self.parse = self.kmerize_fastq_parse
+        elif file_type is not None and 'fasta' in file_type:
+            self.parse = self.kmerize_fasta_parse
+        else:
+            self.parse = self.default_parse
+        
+        
 
     def rejoin_to_probe(self, kmer_list, k, stride):
         '''
@@ -77,47 +94,7 @@ class SequenceParser(object):
         kmerized = [line[i:i + k] for i in range(0, len(line) - k + 1, stride)]
         return kmerized
 
-    def generate_kmerized_fastq_parse(self, filename, **kwargs):
-        '''
-        Parses input from fastq but yields the parsed records in batches
-        rather than just a whole list.
-        '''
         
-        # get k, stride, verbose from kwargs
-        k = kwargs.get('K',-1)
-        stride = kwargs.get('stride',-1)
-        batch_size = kwargs.get('batch_size',100)
-        if k < 0 or stride < 0:
-            raise DataSetReaderIllegalStateException("For kmerized parsing"
-                                                     "k must be > 0 and "
-                                                     "stride must be > 0")
-        
-        tokenized_sentences_batch = []
-        
-        if filename.endswith('.gz'):
-            f = gzip.open(filename, mode='rt', encoding='utf-8')
-        else:
-            f = open(filename, mode='r', encoding='utf-8')
-            
-        for fastq_record in self.generate_fastq(f):
-            try:
-                ID, seq, spacer, quality = fastq_record
-            except ValueError:
-                fastq_str = "\n".join(fastq_record)
-                print("Got a malformed fastq record in ", filename, " : ", fastq_str)
-                continue
-            tokenized_sentences_batch.append(dataset_reader.kmerize(seq, k, stride))
-            
-            while len(tokenized_sentences_batch) > batch_size:
-                yield tokenized_sentences_batch
-                tokenized_sentences_batch = []
-        
-        if len(tokenized_sentences_batch) > 0:
-            yield tokenized_sentences_batch
-            
-        f.close()    
-        
-
     def kmerize_fastq_parse(self, filename, **kwargs):
         '''
         Parses input from fastq a fastq encoded corpus files into a 
@@ -137,7 +114,7 @@ class SequenceParser(object):
         k = kwargs.get('K',-1)
         stride = kwargs.get('stride',-1)
         if k < 0 or stride < 0:
-            raise DataSetReaderIllegalStateException("For kmerized parsing"
+            raise SequenceParserException("For kmerized parsing"
                                                      "k must be > 0 and "
                                                      "stride must be > 0")
         
@@ -181,7 +158,7 @@ class SequenceParser(object):
         k = kwargs.get('K',-1)
         stride = kwargs.get('stride',-1)
         if k < 0 or stride < 0:
-            raise DataSetReaderIllegalStateException("For kmerized parsing"
+            raise SequenceParserException("For kmerized parsing"
                                                      "k must be > 0 and "
                                                      "stride must be > 0")
         

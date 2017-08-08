@@ -1,9 +1,9 @@
 data_dir: ../data/selex_data/enriched/
-save_dir: ../results/selex_test_results/enriched_kmers/
+save_dir: ../results/enriched/k_8_s_1/
 file_suffixes: pos.fasta
 K: 8
-stride: 4
-parser: kmerize_fasta_parse
+stride: 1
+parser: fasta
 read_data_async: True
-really_verbose: True
-outfile: ../results/debug_output/fasta_seqs.txt
+really_verbose: False
+timing: False

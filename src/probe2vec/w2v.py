@@ -53,7 +53,7 @@ def word2vec(
         read_data_async=True,
         num_processes=3,
         max_queue_size=0,
-        parse=embedding_utils.SequenceParser.default_parse,
+        parser=SequenceParser(),
         
         # Parsing options
         k=None,
@@ -123,7 +123,7 @@ def word2vec(
         min_frequency=min_frequency,
         t=t,
         kernel=kernel,
-        parse=parse,
+        parser=parser,
         verbose=verbose,
         k=k,
         stride=stride

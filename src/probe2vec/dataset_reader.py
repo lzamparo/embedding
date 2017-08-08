@@ -134,7 +134,7 @@ class DatasetReader(object):
         load_dictionary_dir=None,
         max_queue_size=0,
         macrobatch_size=16000,
-        parse=embedding_utils.SequenceParser.default_parse,
+        parser=SequenceParser(),
         verbose=True,
         k=None,
         stride=None
@@ -150,7 +150,7 @@ class DatasetReader(object):
         self.kernel = kernel
         self.max_queue_size = max_queue_size
         self.macrobatch_size = macrobatch_size
-        self._parse = parse
+        self._parse = parser.parse
         self.verbose = verbose
         self.min_frequency = min_frequency
         self.k = k

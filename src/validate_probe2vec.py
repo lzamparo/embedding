@@ -4,7 +4,8 @@ import yaml
 import pickle
 
 from probe2vec.w2v import word2vec, Word2VecEmbedder
-from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse, DatasetReader
+from probe2vec.dataset_reader import DatasetReader
+from probe2vec.embedding_utils import SequenceParser
 from probe2vec.embedding_utils import build_index, most_similar, merge_counters, reshape_to_vector
 from probe2vec.theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
@@ -101,10 +102,7 @@ selex_files = [os.path.join(data_dir,f) for f in os.listdir(data_dir) if f.endsw
 split = params.get('split', 0.75)
 top_n = 5
 
-if "fastq" in params['parser']:
-    parser = kmerize_fastq_parse
-else:
-    parser = kmerize_fasta_parse
+parser = SequenceParser(**params)
     
 # load the DatasetReader object from the save dir
 reader = DatasetReader(files=[], directories=[], skip=[], noise_ratio=15, 
@@ -115,7 +113,7 @@ reader = DatasetReader(files=[], directories=[], skip=[], noise_ratio=15,
                       load_dictionary_dir=params['save_dir'], 
                       max_queue_size=0, 
                       macrobatch_size=20000, 
-                      parse=parser, 
+                      parser=parser, 
                       verbose=True, k=params['K'], 
                       stride=params['stride'])
     

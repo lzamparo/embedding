@@ -2,7 +2,7 @@ import sys
 import os
 import yaml
 from probe2vec.w2v import word2vec
-from probe2vec.dataset_reader import kmerize_fastq_parse, kmerize_fasta_parse
+from probe2vec.embedding_utils import SequenceParser
 
 
 ### Driver script for training a probe2vec model
@@ -20,17 +20,16 @@ num_processes = params.get('num_processes', 3)
 mb_size = params.get('macrobatch_size', 100000)
 num_embedding_dimensions  = params.get('num_embedding_dimensions', 100)
 num_epochs = params.get('num_epochs',20)
+outfile = params.get('outfile', None)
 kernel = params.get('kernel', [1,2,3,4,5,5,4,3,2,1])
 
+# create sequence parser from yaml config file
+parser = SequenceParser(**params)
 
-if "fastq" in params['parser']:
-    parser = kmerize_fastq_parse
-else:
-    parser = kmerize_fasta_parse
     
 # build an embedder, save the embedder, dataset reader objects.
 embedder, dictionary = word2vec(files=selex_files, 
-                                parse=parser, 
+                                parser=parser, 
                                 save_dir=selex_save_dir, 
                                 load_dictionary_dir=load_dir,
                                 num_processes=num_processes,
@@ -41,5 +40,5 @@ embedder, dictionary = word2vec(files=selex_files,
                                 k=params['K'], stride=params['stride'], 
                                 stdout_to_file=params['really_verbose'], 
                                 timing=params['timing'], 
-                                outfile=params['outfile'],
+                                outfile=outfile,
                                 macrobatch_size=mb_size)
