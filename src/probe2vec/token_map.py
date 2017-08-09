@@ -176,3 +176,6 @@ class TokenMap(object):
             self.map[token] = idx
             self.tokens.append(token)
 
+
+class SeqTokenMap(TokenMap):
+    pass

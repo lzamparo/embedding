@@ -8,6 +8,7 @@ unigram distribution.
 import os
 from probe2vec.token_map import TokenMap, SILENT, WARN, ERROR, UNK
 from probe2vec.counter_sampler import CounterSampler
+from probe2vec.token_map import SeqTokenMap
 
 class UnigramDictionary(object):
     '''

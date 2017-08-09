@@ -45,7 +45,7 @@ class CounterSampler(object):
 
     def compact(self):
         '''
-        Remake the conts list, eliminating `None`s which are holes
+        Remake the counts list, eliminating `None`s which are holes
         left by calls to `remove()`.
         '''
         self.counts = [c for c in self.counts if c is not None]
@@ -122,9 +122,7 @@ class CounterSampler(object):
         [Ed: some strange things here: what is _ptr meant to be?
         Looks like it keeps track of a pointer to a list within a 
         sample.  Maybe calling out to np.random.choice is expensive?
-        
-        
-        will self._ptr ever be >= len(self.np_sample)?]
+        For instance, not clear that self._ptr will ever be >= len(self.np_sample)?]
         '''
         if shape is not None:
             size = np.prod(shape)
