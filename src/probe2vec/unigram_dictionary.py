@@ -18,7 +18,7 @@ class UnigramDictionary(object):
     '''
 
 
-    def __init__(self, on_unk=WARN, token_map=None, counter_sampler=None):
+    def __init__(self, on_unk=WARN, token_map=None, counter_sampler=None, seqmap=False):
         '''
         Create a new UnigramDictionary.  Typical usage provides no
         arguments, but a token_map and counter_sampler can be provided
@@ -27,7 +27,7 @@ class UnigramDictionary(object):
         self.on_unk = on_unk
         self.token_map = token_map
         if token_map is None:
-            self.token_map = TokenMap(on_unk=on_unk)
+            self.token_map = TokenMap(on_unk=on_unk) if not seqmap else SeqTokenMap(on_unk=on_unk)
 
         self.counter_sampler = counter_sampler
         if counter_sampler is None:
@@ -83,6 +83,7 @@ class UnigramDictionary(object):
         tokens = []
         if count:
             dumped = []
+        ### TODO: delegate iterator to token_map obj
         for idx, token in enumerate(self.token_map.tokens):
 
             # Copy over tokens that have at least min_frequency
@@ -275,6 +276,7 @@ class UnigramDictionary(object):
         Gets an iterable of tokens currently in the dictionary.  Omits
         The 'UNK' token.
         '''
+        ### TODO: delegate iterator to token_map obj
         return (
             token for token in self.token_map.tokens if token is not 'UNK'
         )
@@ -290,6 +292,7 @@ class UnigramDictionary(object):
             return []
 
         # Otherwise get the counts normally
+        ### TODO: delegate iterator to token_map obj
         return (
             (token, self.get_frequency(self.get_id(token)))
             for token in self.token_map.tokens

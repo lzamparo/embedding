@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from .unigram_dictionary import UnigramDictionary
 from collections import Counter, defaultdict
-from .token_map import TokenMap, SILENT, ERROR, UNK
+from .token_map import TokenMap, SeqTokenMap, SILENT, ERROR, UNK, get_rc
 import time
 from unittest import main, TestCase
 from theano import tensor as T, function, shared
@@ -41,9 +41,9 @@ class TestSequenceParser(TestCase):
         '''
         Test the reverse complementer
         '''
-        sp = 
+        sp = SeqTokenMap()
         fwd = 'TCGAACGT'
-        rev = self.reverse_comp(fwd)
+        rev = get_rc(fwd)
         rev_fixture = 'ACGTTCGA'
         self.assertEqual(rev, rev_fixture)    
 
