@@ -83,8 +83,7 @@ class UnigramDictionary(object):
         tokens = []
         if count:
             dumped = []
-        ### TODO: delegate iterator to token_map obj
-        for idx, token in enumerate(self.token_map.tokens):
+        for token, idx in self.token_map.get_kviterator():
 
             # Copy over tokens that have at least min_frequency
             # observations. Also copy over UNK no matter what it's
@@ -106,7 +105,10 @@ class UnigramDictionary(object):
 
         # Create a new TokenMap and CounterFrequency based on the
         # filtered tokens and their counts
-        self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
+        if isinstance(self.token_map, TokenMap):
+            self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
+        else:
+            self.token_map = SeqTokenMap(on_unk=self.on_unk, tokens=tokens)
         self.counter_sampler = CounterSampler(counts=counts)
         if count:
             print("dropped ", len(dumped), " tokens in pruning the unigram dictionary")
@@ -276,9 +278,9 @@ class UnigramDictionary(object):
         Gets an iterable of tokens currently in the dictionary.  Omits
         The 'UNK' token.
         '''
-        ### TODO: delegate iterator to token_map obj
+        
         return (
-            token for token in self.token_map.tokens if token is not 'UNK'
+            token for token in self.token_map.keys() if token is not 'UNK'
         )
 
 
@@ -292,10 +294,13 @@ class UnigramDictionary(object):
             return []
 
         # Otherwise get the counts normally
-        ### TODO: delegate iterator to token_map obj
+        ## TODO: this won't work if self.get_id(token) is 
+        ## assigned to more than one token because of an RC
+        ## token.  So I'll have to think about a CounterSampler 
+        ## that can also get_frequency by a Token, not just an ID 
         return (
             (token, self.get_frequency(self.get_id(token)))
-            for token in self.token_map.tokens
+            for token in self.token_map.keys()
         )
 
 

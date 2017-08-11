@@ -149,6 +149,9 @@ class TokenMap(object):
         return [self.tokens[idx] for idx in idx_iterable]
 
 
+    def get_kviterator(self):
+        return self.map.items()
+
     def __len__(self):
         return len(self.tokens)
 
@@ -339,6 +342,8 @@ class SeqTokenMap(TokenMap):
     def get_tokens(self, idx_iterable, rc=True):
         return [self.get_token(idx, rc) for idx in idx_iterable]
 
+    def get_kviterator(self):
+        return self.token_map.items()
 
     def __len__(self):
         return len(self.token_map)
