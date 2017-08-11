@@ -195,3 +195,12 @@ class CounterSampler(object):
         '''
         self.ensure_prepared()
         return self.probabilities[token_id]
+
+
+class SeqCounterSampler(object):
+    '''
+    Counter sampler which uses tokens to key counts, 
+    which is necessary to disambiguate the token -> ID
+    problem.
+    '''
+    pass
