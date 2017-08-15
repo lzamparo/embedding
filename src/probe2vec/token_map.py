@@ -5,6 +5,7 @@ as well as a map from ids back to tokens.
 
 import gzip
 from collections import OrderedDict
+from . import embedding_utils
 
 
 SILENT = 0
@@ -19,16 +20,6 @@ def get_rc(s):
     Return the reverse complement of DNA-token s
     '''
     return ''.join([basedict[b] for b in s[::-1]])
-
-def ensure_str(s):
-    '''
-    Ensures that the string is encoded as a unicode str, not bytes
-    '''
-    try:
-        return s.decode('utf8')
-    except AttributeError:
-        return s
-
 
 class TokenMap(object):
 
@@ -72,7 +63,7 @@ class TokenMap(object):
                     'unknown tokens.'
                 )
 
-            self.tokens = [ensure_str(t) for t in tokens]
+            self.tokens = [embedding_utils.ensure_str(t) for t in tokens]
             self.map = dict((t, idx) for idx, t in enumerate(self.tokens))
 
 
@@ -86,7 +77,7 @@ class TokenMap(object):
 
 
     def remove(self, token):
-        token = ensure_str(token)
+        token = embedding_utils.ensure_str(token)
         idx = self.get_id(token)
         if idx == UNK:
             raise ValueError(
@@ -97,7 +88,7 @@ class TokenMap(object):
 
 
     def add(self, token):
-        token = ensure_str(token)
+        token = embedding_utils.ensure_str(token)
         try:
             return self.map[token]
         except KeyError:
@@ -116,7 +107,7 @@ class TokenMap(object):
 
 
     def get_id(self, token):
-        token = ensure_str(token)
+        token = embedding_utils.ensure_str(token)
         try:
             return self.map[token]
 
@@ -234,7 +225,7 @@ class SeqTokenMap(TokenMap):
                     'unknown tokens.'
                 )
             
-            self.tokens = [ensure_str(t) for t in tokens]
+            self.tokens = [embedding_utils.ensure_str(t) for t in tokens]
             self.token_map = OrderedDict()
             idx = 0
             for t in self.tokens:
@@ -268,7 +259,7 @@ class SeqTokenMap(TokenMap):
         '''
         Remove this token from the map.
         '''
-        token = ensure_str(token)
+        token = embedding_utils.ensure_str(token)
         idx = self.get_id(token)
         if idx == UNK:
             raise ValueError(
@@ -285,7 +276,7 @@ class SeqTokenMap(TokenMap):
         '''
         Add the token to the map
         '''
-        token = ensure_str(token)
+        token = embedding_utils.ensure_str(token)
         try:
             return self.token_map[token]
         except KeyError:
@@ -305,7 +296,7 @@ class SeqTokenMap(TokenMap):
 
 
     def get_id(self, token):
-        token = ensure_str(token)
+        token = embedding_utils.ensure_str(token)
         try:
             return self.token_map[token]
 
