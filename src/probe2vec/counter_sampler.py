@@ -378,3 +378,4 @@ class UnigramCounterSampler(object):
         '''
         self.ensure_prepared()
         return self.get_frequency(token) / self.total
+

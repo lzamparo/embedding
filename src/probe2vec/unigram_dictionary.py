@@ -31,14 +31,18 @@ class UnigramDictionary(object):
 
         self.counter_sampler = counter_sampler
         if counter_sampler is None:
+            self.cs_map = {}        # token: counter sampler list ID
             self.counter_sampler = CounterSampler()
 
 
     def sort(self):
+        ### Not used in project
         unk_count = self.counter_sampler.counts[0]
 
         # Get the counts and tokens (skipping the first UNK entry)
         # They are parallel arrays (ith count corresponds to ith token)
+        
+        ## TODO: alter to return idx via cs_map
         counts = self.counter_sampler.counts[1:]
         tokens = self.token_map.tokens[1:]
 
@@ -63,6 +67,7 @@ class UnigramDictionary(object):
 
 
     def remove(self, token):
+        ## TODO: alter to return idx via cs_map
         idx = self.get_id(token)
         self.token_map.remove(token)
         self.counter_sampler.remove(idx)
@@ -93,11 +98,13 @@ class UnigramDictionary(object):
                 or idx == 0
             ):
                 tokens.append(token)
+                ## TODO: alter to return idx via cs_map
                 counts.append(self.get_frequency(idx))
 
             # Skip tokens that have too little frequency.  Attribute their
             # observations to UNK
             else:
+                ## TODO: alter to return idx via cs_map
                 counts[UNK] += self.get_frequency(idx)
                 if count:
                     dumped.append(token)
@@ -126,6 +133,7 @@ class UnigramDictionary(object):
         token_id = self.token_map.add(token)
 
         # Increment the frequency count
+        ## TODO: alter to return idx via cs_map
         self.counter_sampler.add(token_id)
 
         return token_id
@@ -139,6 +147,7 @@ class UnigramDictionary(object):
         # Get or create an id for this token
         token_id = self.token_map.add(token)
         # Increment the frequency count
+        ## TODO: alter to return idx via cs_map
         self.counter_sampler.add_count(token_id, count)
 
 
@@ -198,6 +207,7 @@ class UnigramDictionary(object):
         Get the id (int) for the corresponding token (string).
         '''
         # Delegate to the underlying token_map.
+        ## TODO: alter to return idx via cs_map
         return self.token_map.get_id(token)
 
 
@@ -207,6 +217,7 @@ class UnigramDictionary(object):
         issued by token_iterable.
         '''
         # Delegate to the underlying token map.
+        ## TODO: alter to return idx via cs_map
         return self.token_map.get_ids(token_iterable)
 
 
@@ -234,6 +245,8 @@ class UnigramDictionary(object):
         given (savedir), using the default filenames "token-map.gz" and
         "counter-sampler.gz".
         '''
+        
+        ## TODO: also need to save the cs_map, 
 
         # If the directory provided is a file, raise an error
         if os.path.exists(savedir):
@@ -267,6 +280,8 @@ class UnigramDictionary(object):
         self.token_map = TokenMap()
         self.token_map.load(os.path.join(loaddir, 'token-map.gz'))
 
+        ## TODO: alter to return idx via cs_map
+
         # Load the CounterSampler by delegation to its load function
         self.counter_sampler = CounterSampler()
         self.counter_sampler.load(
@@ -294,10 +309,7 @@ class UnigramDictionary(object):
             return []
 
         # Otherwise get the counts normally
-        ## TODO: this won't work if self.get_id(token) is 
-        ## assigned to more than one token because of an RC
-        ## token.  So I'll have to think about a CounterSampler 
-        ## that can also get_frequency by a Token, not just an ID 
+        ## TODO: alter to return idx via cs_map 
         return (
             (token, self.get_frequency(self.get_id(token)))
             for token in self.token_map.keys()
