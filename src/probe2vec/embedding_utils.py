@@ -2,14 +2,6 @@ import os
 from annoy import AnnoyIndex
 import gzip
 
-def ensure_str(s):
-    '''
-    Ensures that the string is encoded as a unicode str, not bytes
-    '''
-    try:
-        return s.decode('utf8')
-    except AttributeError:
-        return s
 
 
 # build annoy index tree
@@ -58,6 +50,14 @@ def merge_counters(input_list, token_counter_dict):
         top_tokens = top_tokens + c    
     return top_tokens
 
+def ensure_str(s):
+    '''
+    Ensures that the string is encoded as a unicode str, not bytes
+    '''
+    try:
+        return s.decode('utf8')
+    except AttributeError:
+        return s
 
 class SequenceParserException(Exception):
     '''

@@ -12,7 +12,7 @@ from .dataset_reader import TokenChooser, DatasetReader, DataSetReaderIllegalSta
 from .theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
-from .counter_sampler import CounterSampler
+from .counter_sampler import CounterSampler, UnigramCounterSampler
 from .embedding_utils import SequenceParser
 
 from lasagne.init import Normal
@@ -683,6 +683,132 @@ class TestTokenChooser(TestCase):
             diff = abs(expected_frequencies[idx] - found_frequencies[idx])
             self.assertTrue(diff < tolerance)
 
+
+
+class TestUnigramCounterSampler(TestCase):
+
+    def test_sampling(self):
+        '''
+        Test basic function of assigning counts, and then sampling from
+        The distribution implied by those counts.
+        '''
+        
+        tokens = ['AATAC','TTTTT','CCCCC','GGGGAG','ATCGN']
+        counts = list(range(1,6))
+        counter_sampler = UnigramCounterSampler()
+        [counter_sampler.add_count(token,count) for token,count in zip(tokens,counts)]
+
+        # Test asking for a single sample (where no shape tuple supplied)
+        single_sample = counter_sampler.sample()
+        self.assertTrue(type(single_sample) is np.int64)
+
+        # Test asking for an array of samples (by passing a shape tuple)
+        shape = (2,3,5)
+        array_sample = counter_sampler.sample(shape)
+        self.assertTrue(type(array_sample) is np.ndarray)
+        self.assertTrue(array_sample.shape == shape)
+
+
+    def test_add_function(self):
+        '''
+        Make sure that the add function is working correctly.
+        CounterSampler stores counts as list, wherein the value at
+        position i of the list encodes the number of counts seen for
+        outcome i.
+
+        Counts are added by passing the outcome's index into
+        CounterSampler.add()
+        which leads to position i of the counts list to be incremented.
+        If position i doesn't exist, it is created.  If the counts list
+        had only j elements before, and a count is added for position
+        i, with i much greater than j, then many elements are created
+        between i and j, and are provisionally initialized with zero
+        counts.
+
+        Ensure that is done properly
+        '''
+
+        counter_sampler = CounterSampler()
+        self.assertEqual(counter_sampler.counts, [])
+
+        outcome_to_add = 6
+        counter_sampler.add(outcome_to_add)
+        expected_counts = [0]*(outcome_to_add) + [1]
+        self.assertEqual(counter_sampler.counts, expected_counts)
+
+        # Now ensure the underlying sampler can tolerate a counts list
+        # containing zeros, and that the sampling statistics is as
+        # expected.  We expect that the only outcome that should turn up
+        # is outcome 6, since it has all the probability mass.  Check that.
+        counter = Counter(counter_sampler.sample((100000,))) # should be
+                                                             # all 6's
+        total = float(sum(counter.values()))
+        found_normalized = [
+            counter[i] / total for i in range(outcome_to_add+1)
+        ]
+
+        # Make an list of the expected fractions by which each outcome
+        # should be observed, in the limit of infinite sample
+        expected_normalized = expected_counts
+
+        # Check if each outcome was observed with a fraction that is within
+        # 0.005 of the expected fraction
+        self.assertEqual(found_normalized, expected_normalized)
+
+
+    def test_counter_sampler_statistics(self):
+        '''
+        This tests that the sampler really does produce results whose
+        statistics match those requested by the counts vector
+        '''
+        # Seed numpy's random function to make the test reproducible
+        np.random.seed(1)
+
+        # Make a sampler with probabilities proportional to counts
+        counts = list(range(1,6))
+        counter_sampler = CounterSampler()
+        for outcome, count in enumerate(counts):
+            counter_sampler.update([outcome]*count)
+
+        # Draw one hundred thousand samples, then total up the fraction of
+        # each outcome obseved
+        counter = Counter(counter_sampler.sample((100000,)))
+        total = float(sum(counter.values()))
+        found_normalized = [
+            counter[i] / total for i in range(len(counts))
+        ]
+
+        # Make an list of the expected fractions by which each outcome
+        # should be observed, in the limit of infinite sample
+        total_in_expected = float(sum(counts))
+        expected_normalized = [
+            c / total_in_expected for c in counts
+        ]
+
+        # Check if each outcome was observed with a fraction that is within
+        # 0.005 of the expected fraction
+        close = [
+            abs(f - e) < 0.005
+            for f,e in zip(found_normalized, expected_normalized)
+        ]
+        self.assertTrue(all(close))
+
+
+    def test_save_load(self):
+
+        fname = '../../data/test-data/test-counter-sampler/test-counter-sampler.gz'
+
+        # Make a sampler with probabilities proportional to counts
+        counts = list(range(1,6))
+        counter_sampler = CounterSampler()
+        for outcome, count in enumerate(counts):
+            counter_sampler.update([outcome]*count)
+
+        counter_sampler.save(fname)
+
+        new_counter_sampler = CounterSampler()
+        new_counter_sampler.load(fname)
+        self.assertEqual(new_counter_sampler.counts, counts)
 
 
 class TestCounterSampler(TestCase):

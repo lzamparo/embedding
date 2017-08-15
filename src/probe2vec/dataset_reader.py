@@ -655,20 +655,18 @@ class DatasetReader(object):
                 if len(tokens) < 2:
                     continue
 
-                token_ids = self.unigram_dictionary.get_ids(tokens)
-
-                for query_token_pos, query_token_id in enumerate(token_ids):
+                for query_token_pos, query_token in enumerate(tokens):
 
                     # Possibly discard the token
-                    if self.do_discard(query_token_id):
+                    if self.do_discard(query_token):
                         continue
 
                     # Sample a token from the context
                     context_token_pos = chooser.choose_token(
-                        query_token_pos, len(token_ids)
+                        query_token_pos, len(tokens)
                     )
-                    context_token_id = token_ids[context_token_pos]
-                    signal_examples = [[query_token_id, context_token_id]]
+                    context_token_id = self.unigram_dictionary.get_id(tokens[context_token_pos])
+                    signal_examples = [[self.unigram_dictionary.get_id(query_token), context_token_id]]
                     num_examples += 1
 
                     noise_examples = self.generate_noise_examples(
@@ -695,12 +693,12 @@ class DatasetReader(object):
         return [UNK, UNK]
 
 
-    def do_discard(self, token_id):
+    def do_discard(self, token):
         '''
         This function helps with downsampling of very common words.
         Returns true when the token should be discarded as a query word
         '''
-        probability = self.unigram_dictionary.get_probability(token_id)
+        probability = self.unigram_dictionary.get_probability(token)
         discard_probability = 1 - np.sqrt(self.t/probability)
         do_discard = np.random.uniform() < discard_probability
 
