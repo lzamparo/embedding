@@ -232,7 +232,7 @@ class UnigramCounterSampler(object):
         Remake the counts list, eliminating `None`s which are holes
         left by calls to `remove()`.
         '''
-        self.counts = OrderedDict(((k,c) for k,c in self.items() if c is not None))
+        self.counts = OrderedDict(((k,c) for k,c in self.counts.items() if c is not None))
 
 
 
@@ -274,8 +274,8 @@ class UnigramCounterSampler(object):
             )
 
         if not self.sampler_ready:
-            self.total = np.sum(self.counts.values())
-            self.probabilities = np.array(self.counts.values()) / float(self.total)
+            self.total = np.sum(list(self.counts.values()))
+            self.probabilities = np.array(list(self.counts.values())) / float(self.total)
             self.sampler_ready = True
 
 
@@ -312,7 +312,7 @@ class UnigramCounterSampler(object):
             size = 1
 
         if not hasattr(self, '_probs'):
-            self._probs = np.array(list(self.counts.items()), dtype='float64')
+            self._probs = np.array(list(self.counts.values()), dtype='float64')
             self._probs = self._probs / np.sum(self._probs)
 
         if not hasattr(self, '_np_sample'):

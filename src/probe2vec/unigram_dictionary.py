@@ -6,9 +6,9 @@ unigram distribution.
 '''
 
 import os
-from probe2vec.token_map import TokenMap, SILENT, WARN, ERROR, UNK
-from probe2vec.counter_sampler import UnigramCounterSampler
-from probe2vec.token_map import SeqTokenMap
+from .token_map import TokenMap, SILENT, WARN, ERROR, UNK
+from .counter_sampler import UnigramCounterSampler
+from .token_map import SeqTokenMap
 
 class UnigramDictionary(object):
     '''
@@ -113,7 +113,7 @@ class UnigramDictionary(object):
             self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
         else:
             self.token_map = SeqTokenMap(on_unk=self.on_unk, tokens=tokens)
-        self.counter_sampler = UnigramCounterSampler(counts=OrderedDictionary( ( (t,c) for t,c in zip(tokens,counts) ) )
+        self.counter_sampler = UnigramCounterSampler(counts = OrderedDictionary( ((t,c) for t,c in zip(tokens,counts)) ))
         if count:
             print("dropped ", len(dumped), " tokens in pruning the unigram dictionary")
 
@@ -285,7 +285,7 @@ class UnigramDictionary(object):
         '''
         
         return (
-            token for token in self.token_map.keys() if token is not 'UNK'
+            token for token, _ in self.token_map.get_kviterator() if token is not 'UNK'
         )
 
 
@@ -301,7 +301,7 @@ class UnigramDictionary(object):
         # Otherwise get the counts normally
         return (
             (token, self.get_frequency(token))
-            for token in self.token_map.keys()
+            for token in self.get_token_list()
         )
 
 

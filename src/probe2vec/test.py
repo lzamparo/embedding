@@ -119,7 +119,7 @@ class TestUnigramDictionary(TestCase):
 
         
 
-
+        ### TODO: fix lookup for tokens
     def test_remove_compact(self):
         unigram_dictionary = UnigramDictionary()
         unigram_dictionary.update(self.CORPUS)
@@ -172,7 +172,7 @@ class TestUnigramDictionary(TestCase):
         self.assertTrue(type(array_sample) is np.ndarray)
         self.assertTrue(array_sample.shape == shape)
 
-
+    ### TODO: fix to use token based expected frac from unigram dict
     def test_counter_sampler_statistics(self):
         '''
         This tests that the UnigramDictionary really does produce results
@@ -193,7 +193,7 @@ class TestUnigramDictionary(TestCase):
         # should be observed, in the limit of infinite sample
         total_in_expected = float(len(self.CORPUS))
 
-        tolerance = 0.004  # LZ: this test seems to behave stochastically ??!?  found_frac for grapefruit varies from 0.29718 to 0.3033
+        tolerance = 0.004  
         for idx, found_freq in six.iteritems(counter):
             found_frac = found_freq / 100000.0
             token = unigram_dictionary.get_token(idx)
@@ -340,6 +340,8 @@ class TestUnigramDictionary(TestCase):
 
         # Ensure that the dictionary has correctly encoded the desired
         # information about the corpus.
+        
+        ### TODO: change test to reflect token based unigram lookup
         for token in unigram_dictionary.token_map.tokens:
             token_id = unigram_dictionary.get_id(token)
             freq = unigram_dictionary.get_frequency(token_id)
@@ -733,10 +735,9 @@ class TestUnigramCounterSampler(TestCase):
         self.assertEqual(counter_sampler.counts, OrderedDict())
 
         tokens = ['TTTTT']
-        
         counter_sampler.add(tokens[0])
-        expected_counts = [0,1]
-        self.assertEqual(counter_sampler.counts, expected_counts)
+        expected_counts = [1]
+        self.assertEqual(list(counter_sampler.counts.values()), expected_counts)
 
         # Now ensure the underlying sampler can tolerate a counts list
         # containing zeros, and that the sampling statistics is as
@@ -746,7 +747,7 @@ class TestUnigramCounterSampler(TestCase):
                                                              # all 6's
         total = float(sum(counter.values()))
         found_normalized = [
-            counter[i] / total for i in range(outcome_to_add+1)
+            counter[i] / total for i in range(len(counter))
         ]
 
         # Make an list of the expected fractions by which each outcome
@@ -768,15 +769,16 @@ class TestUnigramCounterSampler(TestCase):
         tokens = ['TTTTT','CCCCC']
         counter_sampler.add_count(tokens[0], 10)
         counter_sampler.add_count(tokens[1], 10)
-        counter = Counter(counter_sampler.sample((1000,)))
+        counter = Counter(counter_sampler.sample((10000000,)))
         
         total = float(sum(counter.values()))
         found_normalized = [
-            counter[i] / total for i in range(outcome_to_add+1)
+            counter[i] / total for i in range(len(counter))
         ]
         
-        expected_counts = [0,1,1]
-        self.assertEqual(found_normalized, expected_normalized)
+        expected_normalized = [0.5,0.5]
+        for f,e in zip(found_normalized, expected_normalized):
+            self.assertAlmostEqual(f, e, places=3)
                
         
         
@@ -821,19 +823,22 @@ class TestUnigramCounterSampler(TestCase):
 
     def test_save_load(self):
 
-        fname = '../../data/test-data/test-counter-sampler/test-unigram-counter-sampler.gz'
+        fname = '../../data/test-data/test-unigram-counter-sampler/test-unigram-counter-sampler.gz'
 
         # Make a sampler with probabilities proportional to counts
-        counts = list(range(1,6))
-        counter_sampler = CounterSampler()
-        for outcome, count in enumerate(counts):
-            counter_sampler.update([outcome]*count)
+        counts = list(range(1,4))
+        tokens = ['TTTTT','CCCCC','AGAGA']
+        counter_sampler = UnigramCounterSampler()
+        for outcome, count in zip(tokens,counts):
+            counter_sampler.add_count(outcome,count)
+
 
         counter_sampler.save(fname)
 
-        new_counter_sampler = CounterSampler()
+        new_counter_sampler = UnigramCounterSampler()
         new_counter_sampler.load(fname)
-        self.assertEqual(new_counter_sampler.counts, counts)
+        for token in tokens:
+            self.assertEqual(counter_sampler.get_frequency(token), new_counter_sampler.get_frequency(token))
 
 
 class TestCounterSampler(TestCase):
