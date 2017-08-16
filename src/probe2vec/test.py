@@ -14,6 +14,7 @@ from .theano_minibatcher import (
 )
 from .counter_sampler import CounterSampler, UnigramCounterSampler
 from .embedding_utils import SequenceParser
+from collections import OrderedDict
 
 from lasagne.init import Normal
 from lasagne.updates import nesterov_momentum
@@ -693,7 +694,7 @@ class TestUnigramCounterSampler(TestCase):
         The distribution implied by those counts.
         '''
         
-        tokens = ['AATAC','TTTTT','CCCCC','GGGGAG','ATCGN']
+        tokens = ['AATAC','TTTTT','CCCCC','GGGAG','ATCGN']
         counts = list(range(1,6))
         counter_sampler = UnigramCounterSampler()
         [counter_sampler.add_count(token,count) for token,count in zip(tokens,counts)]
@@ -728,12 +729,13 @@ class TestUnigramCounterSampler(TestCase):
         Ensure that is done properly
         '''
 
-        counter_sampler = CounterSampler()
-        self.assertEqual(counter_sampler.counts, [])
+        counter_sampler = UnigramCounterSampler()
+        self.assertEqual(counter_sampler.counts, OrderedDict())
 
-        outcome_to_add = 6
-        counter_sampler.add(outcome_to_add)
-        expected_counts = [0]*(outcome_to_add) + [1]
+        tokens = ['TTTTT']
+        
+        counter_sampler.add(tokens[0])
+        expected_counts = [0,1]
         self.assertEqual(counter_sampler.counts, expected_counts)
 
         # Now ensure the underlying sampler can tolerate a counts list
@@ -755,7 +757,29 @@ class TestUnigramCounterSampler(TestCase):
         # 0.005 of the expected fraction
         self.assertEqual(found_normalized, expected_normalized)
 
-
+    def test_add_count(self):
+        '''
+        Add two tokens 100 times each, see if we get approximately
+        equal sampled frequencies.
+        '''
+        counter_sampler = UnigramCounterSampler()
+        self.assertEqual(counter_sampler.counts, OrderedDict())
+        
+        tokens = ['TTTTT','CCCCC']
+        counter_sampler.add_count(tokens[0], 10)
+        counter_sampler.add_count(tokens[1], 10)
+        counter = Counter(counter_sampler.sample((1000,)))
+        
+        total = float(sum(counter.values()))
+        found_normalized = [
+            counter[i] / total for i in range(outcome_to_add+1)
+        ]
+        
+        expected_counts = [0,1,1]
+        self.assertEqual(found_normalized, expected_normalized)
+               
+        
+        
     def test_counter_sampler_statistics(self):
         '''
         This tests that the sampler really does produce results whose
@@ -765,10 +789,11 @@ class TestUnigramCounterSampler(TestCase):
         np.random.seed(1)
 
         # Make a sampler with probabilities proportional to counts
-        counts = list(range(1,6))
-        counter_sampler = CounterSampler()
-        for outcome, count in enumerate(counts):
-            counter_sampler.update([outcome]*count)
+        counts = list(range(1,4))
+        tokens = ['TTTTT','CCCCC','AGAGA']
+        counter_sampler = UnigramCounterSampler()
+        for outcome, count in zip(tokens,counts):
+            counter_sampler.add_count(outcome,count)
 
         # Draw one hundred thousand samples, then total up the fraction of
         # each outcome obseved
@@ -796,7 +821,7 @@ class TestUnigramCounterSampler(TestCase):
 
     def test_save_load(self):
 
-        fname = '../../data/test-data/test-counter-sampler/test-counter-sampler.gz'
+        fname = '../../data/test-data/test-counter-sampler/test-unigram-counter-sampler.gz'
 
         # Make a sampler with probabilities proportional to counts
         counts = list(range(1,6))
