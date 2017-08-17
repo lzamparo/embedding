@@ -173,6 +173,36 @@ class TestUnigramDictionary(TestCase):
         self.assertTrue(array_sample.shape == shape)
 
     ### TODO: fix to use token based expected frac from unigram dict
+    ### the test is supposed to show the unigram_dict will sample tokens
+    ### roughly in proportion with the un-normalized frequency counts
+    ### Somehow position in counter sampler list of values is being conflated
+    ### with token_id.
+    
+    ### In the example commented out, the token being sampled is 'banana', but 
+    ### the relative frequency of the first token in the Counter (idx == 1)
+    ### is that for 'pineapple'.  Need to get the comparison right.
+       
+    #unigram_dictionary.token_map.map
+    #{'UNK': 0, 'banana': 2, 'pineapple': 1, 'grapefruit': 4, 'apple': 3, 'orange': 5}
+    #self.FREQUENCIES[token]
+    #8
+    #idx
+    #1
+    #token
+    #'banana'
+    #unigram_dictionary.counter_sampler.counts
+    #OrderedDict([('pineapple', 3), ('banana', 8), ('apple', 4), ('grapefruit', 9), ('orange', 6)])
+    #self.CORPUS
+    #['pineapple', 'pineapple', 'pineapple', 'banana', 'banana', 'banana', 'banana', 'banana', 'banana', 'banana', 'banana', 'apple', 'apple', 'apple', 'apple', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'orange', 'orange', 'orange', 'orange', 'orange', 'orange']
+    #self.FREQUENCIES
+    #{'pineapple': 3, 'banana': 8, 'grapefruit': 9, 'apple': 4, 'orange': 6}
+    #found_frac
+    #0.10138
+    #expected_frac
+    #0.26666666666666666    
+    # self.FREQUENCIES['pineapple'] / 30
+    # 0.1     
+    
     def test_counter_sampler_statistics(self):
         '''
         This tests that the UnigramDictionary really does produce results
@@ -187,13 +217,16 @@ class TestUnigramDictionary(TestCase):
 
         # Draw one hundred thousand samples, then total up the fraction of
         # each outcome obseved
-        counter = Counter(unigram_dictionary.sample((100000,)))
+        my_sample = unigram_dictionary.sample((100000,))
+        counter = Counter(my_sample)
 
         # Make a list of the expected fractions by which each outcome
         # should be observed, in the limit of infinite sample
         total_in_expected = float(len(self.CORPUS))
 
         tolerance = 0.004  
+        
+        
         for idx, found_freq in six.iteritems(counter):
             found_frac = found_freq / 100000.0
             token = unigram_dictionary.get_token(idx)

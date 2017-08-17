@@ -6,6 +6,7 @@ unigram distribution.
 '''
 
 import os
+import numpy as np
 from .token_map import TokenMap, SILENT, WARN, ERROR, UNK
 from .counter_sampler import UnigramCounterSampler
 from .token_map import SeqTokenMap
@@ -213,22 +214,22 @@ class UnigramDictionary(object):
         # Delegate to the underlying token map.
         return self.token_map.get_ids(token_iterable)
 
-    ### Deprecated: not used
+    ### Deprecated: not used except in testing
     def get_token(self, idx):
         '''
         Return token (string) for the corresponding id (int)
         '''
-        # Delegate to the underlying token map
-        return self.token_map.get_token(idx)
+        return list(self.counter_sampler.counts)[idx]
 
-    ### Deprecated: not used
+    ### Deprecated: not used except in testing
     def get_tokens(self, idx_iterable):
         '''
         Return the tokens (list of strings) for the corresponding ids
         (ints) issued by idx_iterable.
         '''
-        # Delegate to the underlying token map.
-        return self.token_map.get_tokens(idx_iterable)
+        # Delegate to the underlying counter sampler.
+        ordered_tokens = list(self.counter_sampler.counts)
+        return [self.get_token(idx) for idx in idx_iterable] 
 
 
     def save(self, savedir):
@@ -307,10 +308,17 @@ class UnigramDictionary(object):
 
     def sample(self, shape=None):
         '''
-        Draw a sample according to the counter_sampler probability
+        Draw a sample according to the counter_sampler probability,
+        Return the token_id of the token(s) sampled.
         '''
         # Delegate to the underlying CounterSampler
-        return self.counter_sampler.sample(shape)
+        cs_sample = self.counter_sampler.sample(shape)
+        if shape is None:
+            return np.int64(self.get_id(self.get_token(cs_sample)))
+        tokens = [self.get_token(idx) for idx in cs_sample.flatten()]
+        token_ids = [self.get_id(t) for t in tokens]
+        return np.asarray(token_ids, dtype=np.int64).reshape(shape)
+        
 
 
     def get_probability(self, token_id):
