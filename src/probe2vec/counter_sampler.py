@@ -367,9 +367,12 @@ class UnigramCounterSampler(object):
 
     def get_frequency(self, token):
         '''
-        Return the number of observations for outcome idx.
+        Return the number of observations for the given token, or zero.
         '''
-        return self.counts[token]
+        try:
+            return self.counts[token]
+        except KeyError:
+            return 0
 
 
     def get_probability(self, token):

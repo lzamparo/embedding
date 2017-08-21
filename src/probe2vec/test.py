@@ -63,6 +63,10 @@ class TestUnigramDictionary(TestCase):
         'pineapple':3, 'grapefruit':9
     }
     CORPUS = list(Counter(FREQUENCIES).elements())
+    
+    DNA_TOKENS = ['ACGACGAT','TCGATCGA','TCGAACGT','ACGTTCGA']
+    DNA_FREQUENCIES = {'ACGACGAT': 4, 'TCGATCGA': 5, 'TCGAACGT': 4, 'ACGTTCGA': 9}
+    DNA_CORPUS = list(Counter(DNA_FREQUENCIES).elements())
 
 
     def test_add(self):
@@ -82,44 +86,27 @@ class TestUnigramDictionary(TestCase):
             )
 
 
-    def test_sort(self):
-        np.random.seed(1)
-        np.random.shuffle(self.CORPUS)
-        unigram_dictionary = UnigramDictionary()
-        unigram_dictionary.update(self.CORPUS)
-
-        ordered_tokens = ['UNK'] + [
-            token for token, count 
-            in Counter(self.FREQUENCIES).most_common()
-        ]
-        ordered_counts = [0] + [
-            count for token, count 
-            in Counter(self.FREQUENCIES).most_common()
-        ]
-
-        self.assertNotEqual(
-            unigram_dictionary.token_map.tokens,
-            ordered_tokens
-        )
-        self.assertNotEqual(
-            unigram_dictionary.counter_sampler.counts,
-            ordered_counts
-        )
-
-        unigram_dictionary.sort()
+    
+    def test_rc_token_retrieval(self):
+        ''' Test that the counts for a token and its reverse complement
+        are different '''
+        unigram_dictionary = UnigramDictionary(seqmap=True)
+        unigram_dictionary.update_counts(six.iteritems(self.DNA_FREQUENCIES))
         
-        self.assertEqual(
-            unigram_dictionary.token_map.tokens,
-            ordered_tokens
-        )
-        self.assertEqual(
-            unigram_dictionary.counter_sampler.counts,
-            ordered_counts
-        )
-
+        token_count= unigram_dictionary.get_frequency('TCGAACGT')
+        rc_token_count = unigram_dictionary.get_frequency('ACGTTCGA')
+        self.assertTrue(token_count != rc_token_count)
         
+    def test_token_rc_code(self):
+        ''' Test that a token and its RC gets assigned to the same code '''
+        unigram_dictionary = UnigramDictionary(seqmap=True)
+        unigram_dictionary.update_counts(six.iteritems(self.DNA_FREQUENCIES))
+        
+        token_id = unigram_dictionary.get_id('TCGAACGT')
+        rc_id = unigram_dictionary.get_id('ACGTTCGA')
+        
+        self.assertTrue(token_id == rc_id)
 
-        ### TODO: fix lookup for tokens
     def test_remove_compact(self):
         unigram_dictionary = UnigramDictionary()
         unigram_dictionary.update(self.CORPUS)
@@ -139,9 +126,8 @@ class TestUnigramDictionary(TestCase):
         for token in reduced_tokens:
             expected_probability = (
                 adjusted_frequencies[token] / float(total))
-            idx = unigram_dictionary.get_id(token)
             self.assertEqual(
-                unigram_dictionary.get_probability(idx), 
+                unigram_dictionary.get_probability(token), 
                 expected_probability
             )
 
@@ -252,7 +238,9 @@ class TestUnigramDictionary(TestCase):
             self.assertEqual(unigram_dictionary.get_id(fruit), idx+1)
 
             # Ensure that we can look up the token using the id
-            self.assertEqual(unigram_dictionary.get_token(idx+1), fruit)
+            # Do not increment by 1, since this deprecated method uses
+            # the counter sampler rather than token map
+            self.assertEqual(unigram_dictionary.get_token(idx), fruit)
 
         # Ensure the unigram_dictionary knows its own length
         self.assertEqual(len(unigram_dictionary), len(self.TOKENS)+1)
@@ -260,8 +248,8 @@ class TestUnigramDictionary(TestCase):
         # Asking for ids of non-existent tokens returns the UNK token_id
         self.assertEqual(unigram_dictionary.get_id('no-exist'), 0)
 
-        # Asking for the token at 0 returns 'UNK'
-        self.assertEqual(unigram_dictionary.get_token(0), 'UNK')
+        # Asking for the 'UNK' token returns 0 
+        self.assertEqual(unigram_dictionary.get_id('UNK'), 0)
 
         # Asking for token at non-existent idx raises IndexError
         with self.assertRaises(IndexError):
@@ -349,9 +337,8 @@ class TestUnigramDictionary(TestCase):
 
         # Test that the counts for each token are correct
         for token, count in list(self.FREQUENCIES.items()):
-            token_id = unigram_dictionary.get_id(token)
             self.assertEqual(
-                unigram_dictionary_copy.get_frequency(token_id),
+                unigram_dictionary_copy.get_frequency(token),
                 count
             )
 
@@ -1290,9 +1277,7 @@ class TestDataReader(TestCase):
         # actually arises in the text, based on the probability of 
         # discarding
         tolerance = 0.05
-        the_token = reader.unigram_dictionary.get_id('the')
-        the_frequency = reader.unigram_dictionary.get_probability(
-            the_token)
+        the_frequency = reader.unigram_dictionary.get_probability('the')
         expected_keep_ratio = np.sqrt(self.t/the_frequency)
         actual_keep_ratio = signal_query_frequency / float(num_the_tokens)
         self.assertTrue(
@@ -1431,8 +1416,7 @@ class TestDataReader(TestCase):
 
         counts = Counter(tokens)
         for token in tokens:
-            token_id = d.get_id(token)
-            count = d.get_frequency(token_id)
+            count = d.get_frequency(token)
             self.assertEqual(count, counts[token])
 
 

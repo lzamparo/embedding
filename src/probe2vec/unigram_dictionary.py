@@ -279,7 +279,7 @@ class UnigramDictionary(object):
 
 
         # Load the CounterSampler by delegation to its load function
-        self.counter_sampler = CounterSampler()
+        self.counter_sampler = UnigramCounterSampler()
         self.counter_sampler.load(
             os.path.join(loaddir, 'counter-sampler.gz'))
 
@@ -326,12 +326,12 @@ class UnigramDictionary(object):
         
 
 
-    def get_probability(self, token_id):
+    def get_probability(self, token):
         '''
-        Return the probability associated to token_id.
+        Return the probability associated to the given token.
         '''
         # Delegate to the underlying CounterSampler
-        return self.counter_sampler.get_probability(token_id)
+        return self.counter_sampler.get_probability(token)
 
 
     def get_token_frequency(self, token):
