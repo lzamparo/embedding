@@ -218,6 +218,9 @@ class TestUnigramDictionary(TestCase):
         # Draw one hundred thousand samples, then total up the fraction of
         # each outcome obseved
         my_sample = unigram_dictionary.sample((100000,))
+        ### subtract 1 from sample IDs, to account for UNK 
+        ### token space in Token Map (but not Counter Sampler)
+        my_sample = my_sample - 1  
         counter = Counter(my_sample)
 
         # Make a list of the expected fractions by which each outcome
@@ -306,7 +309,7 @@ class TestUnigramDictionary(TestCase):
 
         # Ensure that get_tokens works
         self.assertEqual(
-            unigram_dictionary.get_tokens(list(range(1, len(self.TOKENS)+1))),
+            unigram_dictionary.get_tokens(list(range(0, len(self.TOKENS)))),
             self.TOKENS
         )
 
@@ -316,11 +319,6 @@ class TestUnigramDictionary(TestCase):
             [self.TOKENS.index('apple')+1, 0]
         )
 
-        # Asking for token at 0 returns the 'UNK' token
-        self.assertEqual(
-            unigram_dictionary.get_tokens([3,0]),
-            [self.TOKENS[3-1], 'UNK']
-        )
 
         # Asking for token at non-existent idx raises IndexError
         with self.assertRaises(IndexError):
@@ -374,10 +372,9 @@ class TestUnigramDictionary(TestCase):
         # Ensure that the dictionary has correctly encoded the desired
         # information about the corpus.
         
-        ### TODO: change test to reflect token based unigram lookup
+        
         for token in unigram_dictionary.token_map.tokens:
-            token_id = unigram_dictionary.get_id(token)
-            freq = unigram_dictionary.get_frequency(token_id)
+            freq = unigram_dictionary.get_token_frequency(token)
             if token == 'UNK':
                 self.assertEqual(freq, 0)
             else:
@@ -408,7 +405,7 @@ class TestUnigramDictionary(TestCase):
             self.assertTrue(token not in ('apple', 'pineapple'))
 
             token_id = unigram_dictionary.get_id(token)
-            freq = unigram_dictionary.get_frequency(token_id)
+            freq = unigram_dictionary.get_token_frequency(token)
             if token == 'UNK':
                 self.assertEqual(freq, unk_freq)
             else:

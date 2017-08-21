@@ -7,9 +7,11 @@ unigram distribution.
 
 import os
 import numpy as np
+from collections import OrderedDict
 from .token_map import TokenMap, SILENT, WARN, ERROR, UNK
 from .counter_sampler import UnigramCounterSampler
 from .token_map import SeqTokenMap
+
 
 class UnigramDictionary(object):
     '''
@@ -92,12 +94,15 @@ class UnigramDictionary(object):
             # Copy over tokens that have at least min_frequency
             # observations. Also copy over UNK no matter what it's
             # frequency.
+            if idx == 0:
+                tokens = ['UNK'] + tokens
+                counts.append(0)
+                continue
+            
             if (
                 self.counter_sampler.get_frequency(token) >= min_frequency
-                or idx == 0
             ):
                 tokens.append(token)
-                ## TODO: alter to return idx via cs_map
                 counts.append(self.get_frequency(token))
 
             # Skip tokens that have too little frequency.  Attribute their
@@ -114,7 +119,7 @@ class UnigramDictionary(object):
             self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
         else:
             self.token_map = SeqTokenMap(on_unk=self.on_unk, tokens=tokens)
-        self.counter_sampler = UnigramCounterSampler(counts = OrderedDictionary( ((t,c) for t,c in zip(tokens,counts)) ))
+        self.counter_sampler = UnigramCounterSampler(counts = OrderedDict( ((t,c) for t,c in zip(tokens,counts)) ))
         if count:
             print("dropped ", len(dumped), " tokens in pruning the unigram dictionary")
 
@@ -334,10 +339,10 @@ class UnigramDictionary(object):
         Return the frequency (count) associated to the token
         '''
         # If the token is unknown, return 0
-        token_id = self.get_id(token)
-        if token_id == UNK:
+        if token in self.counter_sampler.counts:
+            return self.get_frequency(token)
+        else:
             return 0
-        return self.get_frequency(token)
 
 
     def get_frequency(self, token):

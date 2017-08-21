@@ -141,7 +141,8 @@ class TokenMap(object):
 
 
     def get_kviterator(self):
-        return self.map.items()
+        ''' Sort by value, to ensure 0 is first '''
+        return ((k,v) for k,v in sorted(self.map.items(), key=lambda x: x[1]))
 
     def __len__(self):
         return len(self.tokens)
