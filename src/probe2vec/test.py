@@ -32,23 +32,6 @@ def sigma(a):
 usigma = np.vectorize(sigma)
 
 
-class TestSequenceParser(TestCase):
-    '''
-    Tests that the SequenceParser properly parses
-    sequences and all that.
-    '''
-
-    def test_reverse_complement(self):
-        '''
-        Test the reverse complementer
-        '''
-        sp = SeqTokenMap()
-        fwd = 'TCGAACGT'
-        rev = get_rc(fwd)
-        rev_fixture = 'ACGTTCGA'
-        self.assertEqual(rev, rev_fixture)    
-
-
 class TestUnigramDictionary(TestCase):
     '''
     Tests that UnigramDictionary properly represents the corpus
@@ -1119,7 +1102,6 @@ class TestNoiseContrast(TestCase):
 
 class TestDataReader(TestCase):
 
-    #TODO: add a test for saving and loading the dictionary and for 
     def setUp(self):
 
         # Define some parameters to be used in construction
@@ -1128,12 +1110,35 @@ class TestDataReader(TestCase):
             '../../data/test-data/test-corpus/003.tsv',
             '../../data/test-data/test-corpus/004.tsv'
         ]
+        
+        self.selex_files = [
+            '../../data/test-data/test-corpus/selex-fasta/ALX4_ESW_TGTGTC20NGA_pos.fasta',
+            '../../data/test-data/test-corpus/selex-fasta/BSX_ESY_TATGAA20NCG_pos.fasta',
+            '../../data/test-data/test-corpus/selex-fasta/CDX2_ESY_TACTTG20NCG_pos.fasta',
+            '../../data/test-data/test-corpus/selex-fasta/CEBPD_ESY_TAATGA20NCG_pos.fasta',
+            '../../data/test-data/test-corpus/selex-fasta/E2F1_ESU_CAATT14N_pos.fasta',
+            '../../data/test-data/test-corpus/selex-fasta/ELF5_ESV_TGCCGC20NCG_pos.fasta'
+        
+        ]
         self.batch_size = 5
         self.macrobatch_size = 5
         self.noise_ratio = 15
         self.num_example_generators = 3
         self.t = 0.03
-
+        kwargdict = {'parser': 'fasta', 'K': 8, 'stride': 1}
+        self.fasta_parser = SequenceParser(**kwargdict)
+        
+        self.dataset_reader_selex_no_discard = DatasetReader(
+            files=self.selex_files, 
+            noise_ratio=self.noise_ratio, 
+            min_frequency=0,
+            t=1.0,
+            macrobatch_size=self.macrobatch_size,
+            num_processes=3,
+            verbose=False,
+            parser=self.fasta_parser
+        )
+        
         self.dataset_reader_with_discard = DatasetReader(
             files=self.files,
             noise_ratio = self.noise_ratio,
@@ -1142,15 +1147,15 @@ class TestDataReader(TestCase):
             num_processes=3,
             verbose=False
         )
-
+    
         self.dataset_reader_no_discard = DatasetReader(
             files=self.files,
             macrobatch_size=self.macrobatch_size,
             noise_ratio = self.noise_ratio,
             t=1.0,
-            num_processes=3,
+            num_processes=6,
             verbose=False
-        )
+        )    
 
 
     def test_prune(self):
@@ -1419,6 +1424,65 @@ class TestDataReader(TestCase):
             count = d.get_frequency(token)
             self.assertEqual(count, counts[token])
 
+
+    def test_prepare_FASTAs(self):
+        ''' 
+        Check that the DatasetReader.prepare() properly 
+        makes a UnigramDictionary from .fasta test files
+        '''
+        reader = self.dataset_reader_selex_no_discard
+        prepkwargs = {'read_async': True}
+        reader.prepare(**prepkwargs)
+        d = reader.unigram_dictionary
+
+        # Make sure all the expected tokens are found in the unigram dict
+        tokens = []
+        for filename in self.selex_files:
+            for add_tokens in reader.parse(filename):
+                tokens.extend(add_tokens)
+        counts = Counter(tokens)
+
+        for token in tokens:
+            count = d.get_token_frequency(token)
+            self.assertEqual(count, counts[token])
+
+
+    def test_produce_macrobatches(self):
+        '''
+        Check that the DatasetReader produces macrobatches
+        '''
+        reader = self.dataset_reader_selex_no_discard
+        prepkwargs = {'read_async': True}
+        reader.prepare(**prepkwargs)
+        d = reader.unigram_dictionary
+    
+        macrobatch_num = 0
+        for signal_mb, noise_mb in reader.generate_dataset_parallel():
+            macrobatch_num += 1
+            self.assertTrue(signal_mb.shape[0] == self.macrobatch_size)
+            self.assertTrue(noise_mb.shape[0] == self.noise_ratio * self.macrobatch_size)
+            if macrobatch_num % 1000 == 0:
+                print("Number of macrobatches seen is: ", macrobatch_num)
+        self.assertTrue(macrobatch_num > 0)
+        
+        
+    def test_profile_produce_macrobatches(self):
+        import cProfile, pstats
+        
+        reader = self.dataset_reader_selex_no_discard
+        prepkwargs = {'read_async': True}
+        reader.prepare(**prepkwargs)
+    
+        profiler = cProfile.Profile()
+        profiler.runcall(list(reader.generate_examples(reader.generate_filenames())))
+    
+        stats = pstats.Stats(profiler)
+        stats.strip_dirs()
+        stats.sort_stats('cumulative', 'calls')
+        stats.print_stats(40)
+        stats.sort_stats('time', 'calls')
+        stats.print_stats(40)        
+        
 
     def test_noise_uniqueness(self):
         '''

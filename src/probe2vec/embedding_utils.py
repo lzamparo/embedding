@@ -75,8 +75,8 @@ class SequenceParser(object):
         fasta files, or space delimited word sentences.
         '''
         file_type = kwargs.get('parser', None)
-        self.K = kwargs.get('K', None)
-        self.stride = kwargs.get('stride', None)
+        self.K = kwargs.get('K', -1)
+        self.stride = kwargs.get('stride', -1)
         
         if file_type is not None and 'fastq' in file_type:
             self.parse = self.kmerize_fastq_parse
@@ -120,10 +120,7 @@ class SequenceParser(object):
         * [any]: representation of training data.
         '''
         
-        # get k, stride, verbose from kwargs
-        k = kwargs.get('K',-1)
-        stride = kwargs.get('stride',-1)
-        if k < 0 or stride < 0:
+        if self.K < 0 or self.stride < 0:
             raise SequenceParserException("For kmerized parsing"
                                                      "k must be > 0 and "
                                                      "stride must be > 0")
@@ -142,7 +139,7 @@ class SequenceParser(object):
                 fastq_str = "\n".join(fastq_record)
                 print("Got a malformed fastq record in ", filename, " : ", fastq_str)
                 continue
-            tokenized_sentences.append(self.kmerize(seq, k, stride))
+            tokenized_sentences.append(self.kmerize(seq, self.K, self.stride))
             
         f.close()
         return tokenized_sentences
@@ -164,10 +161,7 @@ class SequenceParser(object):
         * [any]: representation of training data.
         '''
         
-        # get k, stride, verbose from kwargs
-        k = kwargs.get('K',-1)
-        stride = kwargs.get('stride',-1)
-        if k < 0 or stride < 0:
+        if self.K < 0 or self.stride < 0:
             raise SequenceParserException("For kmerized parsing"
                                                      "k must be > 0 and "
                                                      "stride must be > 0")
@@ -186,7 +180,7 @@ class SequenceParser(object):
                 fasta_str = "\n".join(fasta_record)
                 print("Got a malformed fastq record in ", filename, " : ", fasta_str)
                 continue
-            tokenized_sentences.append(self.kmerize(seq, k, stride))
+            tokenized_sentences.append(self.kmerize(seq, self.K, self.stride))
             
         f.close()
         return tokenized_sentences    
