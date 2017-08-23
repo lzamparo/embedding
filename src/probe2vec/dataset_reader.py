@@ -132,7 +132,7 @@ class DatasetReader(object):
         min_frequency=0,
         kernel=[1,2,3,4,5,5,4,3,2,1],
         load_dictionary_dir=None,
-        max_queue_size=0,
+        max_queue_size=1000,
         macrobatch_size=16000,
         parser=SequenceParser(),
         verbose=True,
@@ -396,7 +396,7 @@ class DatasetReader(object):
             if self.verbose:
                 print('sending macrobatch to parent process')
             macrobatch_queue.put((signal_examples, noise_examples))
-            time.sleep(10.0)  ### trying to fix BrokenPipe error from not being able to put before the process dies and macrobatch_queue is wrapped up ###
+            #time.sleep(10.0)  ### trying to fix BrokenPipe error from not being able to put before the process dies and macrobatch_queue is wrapped up ###
         macrobatch_queue.close()
  
 
