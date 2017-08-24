@@ -158,7 +158,7 @@ class DatasetReader(object):
 
         # If unigram dictionary not supplied, make one
         self.prepared = False
-        self.unigram_dictionary = UnigramDictionary()
+        self.unigram_dictionary = UnigramDictionary(seqmap=True)
 
         # But load dictionary from file if load_dictionary_dir specified.
         if load_dictionary_dir is not None:

@@ -29,8 +29,9 @@ class UnigramDictionary(object):
         '''
         self.on_unk = on_unk
         self.token_map = token_map
+        self.seqmap = seqmap
         if token_map is None:
-            self.token_map = TokenMap(on_unk=on_unk) if not seqmap else SeqTokenMap(on_unk=on_unk)
+            self.token_map = SeqTokenMap(on_unk=on_unk) if seqmap else TokenMap(on_unk=on_unk)
 
         self.counter_sampler = counter_sampler
         self.prepared = False

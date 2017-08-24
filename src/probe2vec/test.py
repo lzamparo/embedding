@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from .unigram_dictionary import UnigramDictionary
 from collections import Counter, defaultdict
-from .token_map import TokenMap, SeqTokenMap, SILENT, ERROR, UNK, get_rc
+from .token_map import TokenMap, SeqTokenMap, SILENT, ERROR, UNK, get_rc, basedict
 import time
 from unittest import main, TestCase
 from theano import tensor as T, function, shared
@@ -963,6 +963,71 @@ class TestCounterSampler(TestCase):
         new_counter_sampler = CounterSampler()
         new_counter_sampler.load(fname)
         self.assertEqual(new_counter_sampler.counts, counts)
+
+
+class TestSeqTokenMap(TestCase):
+    
+    def setUp(self):
+
+        # Define some parameters to be used in construction
+        folder = '../../data/test-data/test-corpus/selex-fasta/'
+        fastafile = 'ALX4_ESW_TGTGTC20NGA_pos.fasta'
+        self.selex_file = folder + fastafile
+        
+        kwargdict = {'parser': 'fasta', 'K': 8, 'stride': 1}
+        self.fasta_parser = SequenceParser(**kwargdict)
+        self.fasta_seqs = self.fasta_parser.parse(self.selex_file)    
+    
+    def test_token_map(self):
+        ''' Make sure we can add tokens, that we get the right number,
+        and that first ID is still UNK. '''
+        
+        token_map = SeqTokenMap()
+        first_tokens = self.fasta_seqs[0]
+        for token in first_tokens:
+            token_map.add(token)
+        self.assertEqual(len(token_map) - 1, len(first_tokens))
+
+        self.assertTrue('UNK' in token_map.get_token(0))
+    
+    def test_token_map_plural(self):
+        ''' Repeat testing of token_map, but for all sentences in fixture data '''
+        pass
+    
+    def test_all_token_rc(self):
+        ''' 
+        Repeat etsting of test_rc_tokens, but for all sentences in
+        fixture data.
+        '''
+        pass
+
+    def test_rc_tokens(self):
+        ''' Test that we add all the tokens in our list
+        but that we use only (|tokens| / 2) token IDs.  '''
+        
+        token_map = SeqTokenMap()
+        first_tokens = self.fasta_seqs[0]
+        for token in first_tokens:
+            token_map.add(token)
+        rc_tokens = [get_rc(t) for t in first_tokens]
+        for token in rc_tokens:
+            token_map.add(token)
+        
+        # len should reflect we added two sentences worth of tokens
+        # plus one for 'UNK'
+        self.assertEqual(len(token_map), 2 * len(first_tokens) + 1)
+        
+        # the tokens and their RCs should have the same ID
+        for t, r in zip(first_tokens, rc_tokens):
+            self.assertEqual(token_map.get_id(t), token_map.get_id(r))
+            
+        # the max token ID should be (len(token_map) - 1)/ 2
+        maxID = 0
+        for t in first_tokens:
+            if token_map.get_id(t) > maxID:
+                maxID = token_map.get_id(t)
+        self.assertTrue(maxID < len(token_map))
+        self.assertEqual(maxID, (len(token_map) - 1) / 2)
 
 
 class TestTokenMap(TestCase):
