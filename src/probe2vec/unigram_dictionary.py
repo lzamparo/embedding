@@ -33,6 +33,7 @@ class UnigramDictionary(object):
             self.token_map = TokenMap(on_unk=on_unk) if not seqmap else SeqTokenMap(on_unk=on_unk)
 
         self.counter_sampler = counter_sampler
+        self.prepared = False
         if counter_sampler is None:
             self.counter_sampler = UnigramCounterSampler()
 
@@ -72,11 +73,14 @@ class UnigramDictionary(object):
         idx = self.get_id(token)
         self.token_map.remove(token)
         self.counter_sampler.remove(token)
+        self.prepared = False
+        
 
 
     def compact(self):
         self.token_map.compact()
         self.counter_sampler.compact()
+        self.ensure_prepared()
 
 
     def prune(self, min_frequency=5, count=False):
@@ -122,6 +126,9 @@ class UnigramDictionary(object):
         self.counter_sampler = UnigramCounterSampler(counts = OrderedDict( ((t,c) for t,c in zip(tokens,counts)) ))
         if count:
             print("dropped ", len(dumped), " tokens in pruning the unigram dictionary")
+        
+        # Make sure the UD is prepared for fast sampling
+        self.ensure_prepared()
 
 
     def add(self, token):
@@ -165,6 +172,14 @@ class UnigramDictionary(object):
         '''
         return len(self.counter_sampler)
 
+
+    def ensure_prepared(self):
+        if self.prepared:
+            return
+        else:
+            self.counter_sampler.ensure_prepared()
+            self.ordered_tokens = list(self.counter_sampler.counts)
+            self.prepared = True
 
     def __len__(self):
         '''
@@ -219,12 +234,17 @@ class UnigramDictionary(object):
         # Delegate to the underlying token map.
         return self.token_map.get_ids(token_iterable)
 
-    ### Deprecated: not used except in testing
+    
     def get_token(self, idx):
         '''
         Return token (string) for the corresponding id (int)
         '''
-        return list(self.counter_sampler.counts)[idx]
+        if self.prepared:
+            return self.ordered_tokens[idx]
+        else:
+            self.ensure_prepared()
+            return self.ordered_tokens[idx]
+            
 
     ### Deprecated: not used except in testing
     def get_tokens(self, idx_iterable):
@@ -320,8 +340,7 @@ class UnigramDictionary(object):
         cs_sample = self.counter_sampler.sample(shape)
         if shape is None:
             return np.int64(self.get_id(self.get_token(cs_sample)))
-        tokens = [self.get_token(idx) for idx in cs_sample.flatten()]
-        token_ids = [self.get_id(t) for t in tokens]
+        token_ids = [self.get_id(self.get_token(idx)) for idx in cs_sample.flatten()]
         return np.asarray(token_ids, dtype=np.int64).reshape(shape)
         
 

@@ -1474,7 +1474,7 @@ class TestDataReader(TestCase):
         reader.prepare(**prepkwargs)
     
         profiler = cProfile.Profile()
-        profiler.runcall(list(reader.generate_examples(reader.generate_filenames())))
+        profiler.runctx('list(reader.generate_examples(reader.generate_filenames()))',globals(), locals())
     
         stats = pstats.Stats(profiler)
         stats.strip_dirs()

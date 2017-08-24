@@ -288,7 +288,7 @@ class UnigramCounterSampler(object):
         self.ensure_prepared()
         return self.total
 
-    ### TODO: broken???
+   
     def sample(self, shape=None):
         '''
         Sample from this CounterSampler.  Returns a number
