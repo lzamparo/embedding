@@ -996,11 +996,34 @@ class TestSeqTokenMap(TestCase):
     
     def test_all_token_rc(self):
         ''' 
-        Repeat etsting of test_rc_tokens, but for all sentences in
+        Repeat testing of test_rc_tokens, but for all sentences in
         fixture data.
         '''
-        pass
-
+        token_map = SeqTokenMap()
+        flat_token_list = [t for l in self.fasta_seqs for t in l]
+        for token in flat_token_list:
+            token_map.add(token)
+        
+        rc_tokens = [get_rc(t) for l in self.fasta_seqs for t in l]
+        for token in rc_tokens:
+            token_map.add(token)
+        
+        # len should reflect that number of IDs is less than 
+        # the number of tokens added
+        self.assertTrue(len(token_map) < len(flat_token_list) + len(rc_tokens) + 1)
+        
+        # the tokens and their RCs should have the same ID
+        for t, r in zip(flat_token_list, rc_tokens):
+            self.assertEqual(token_map.get_id(t), token_map.get_id(r))
+            
+        # the max token ID should be (len(token_map) - 1)/ 2
+        maxID = 0
+        for t in flat_token_list:
+            if token_map.get_id(t) > maxID:
+                maxID = token_map.get_id(t)
+        self.assertTrue(maxID < len(token_map))
+        
+        
     def test_rc_tokens(self):
         ''' Test that we add all the tokens in our list
         but that we use only (|tokens| / 2) token IDs.  '''
