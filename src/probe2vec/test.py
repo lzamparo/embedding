@@ -1215,7 +1215,7 @@ class TestDataReader(TestCase):
         self.t = 0.03
         kwargdict = {'parser': 'fasta', 'K': 8, 'stride': 1}
         self.fasta_parser = SequenceParser(**kwargdict)
-        
+
         self.dataset_reader_selex_no_discard = DatasetReader(
             files=self.selex_files, 
             noise_ratio=self.noise_ratio, 
@@ -1243,7 +1243,6 @@ class TestDataReader(TestCase):
             t=1.0,
             num_processes=6,
             verbose=False
-        )    
 
 
     def test_prune(self):
@@ -1533,8 +1532,8 @@ class TestDataReader(TestCase):
         for token in tokens:
             count = d.get_token_frequency(token)
             self.assertEqual(count, counts[token])
-
-
+            
+            
     def test_produce_macrobatches(self):
         '''
         Check that the DatasetReader produces macrobatches
@@ -1543,7 +1542,7 @@ class TestDataReader(TestCase):
         prepkwargs = {'read_async': True}
         reader.prepare(**prepkwargs)
         d = reader.unigram_dictionary
-    
+
         macrobatch_num = 0
         for signal_mb, noise_mb in reader.generate_dataset_parallel():
             macrobatch_num += 1

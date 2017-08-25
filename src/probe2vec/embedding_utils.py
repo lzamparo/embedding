@@ -160,7 +160,6 @@ class SequenceParser(object):
         RETURNS
         * [any]: representation of training data.
         '''
-        
         if self.K < 0 or self.stride < 0:
             raise SequenceParserException("For kmerized parsing"
                                                      "k must be > 0 and "
