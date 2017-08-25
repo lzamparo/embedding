@@ -6,9 +6,12 @@ unigram distribution.
 '''
 
 import os
-from probe2vec.token_map import TokenMap, SILENT, WARN, ERROR, UNK
-from probe2vec.counter_sampler import CounterSampler
-from probe2vec.token_map import SeqTokenMap
+import numpy as np
+from collections import OrderedDict
+from .token_map import TokenMap, SILENT, WARN, ERROR, UNK
+from .counter_sampler import UnigramCounterSampler
+from .token_map import SeqTokenMap
+
 
 class UnigramDictionary(object):
     '''
@@ -18,7 +21,7 @@ class UnigramDictionary(object):
     '''
 
 
-    def __init__(self, on_unk=WARN, token_map=None, counter_sampler=None):
+    def __init__(self, on_unk=WARN, token_map=None, counter_sampler=None, seqmap=False):
         '''
         Create a new UnigramDictionary.  Typical usage provides no
         arguments, but a token_map and counter_sampler can be provided
@@ -26,19 +29,24 @@ class UnigramDictionary(object):
         '''
         self.on_unk = on_unk
         self.token_map = token_map
+        self.seqmap = seqmap
         if token_map is None:
-            self.token_map = TokenMap(on_unk=on_unk)
+            self.token_map = SeqTokenMap(on_unk=on_unk) if seqmap else TokenMap(on_unk=on_unk)
 
         self.counter_sampler = counter_sampler
+        self.prepared = False
         if counter_sampler is None:
-            self.counter_sampler = CounterSampler()
+            self.counter_sampler = UnigramCounterSampler()
 
 
     def sort(self):
+        ### Not used in project
         unk_count = self.counter_sampler.counts[0]
 
         # Get the counts and tokens (skipping the first UNK entry)
         # They are parallel arrays (ith count corresponds to ith token)
+        
+        ## TODO: alter to return idx via cs_map
         counts = self.counter_sampler.counts[1:]
         tokens = self.token_map.tokens[1:]
 
@@ -65,50 +73,64 @@ class UnigramDictionary(object):
     def remove(self, token):
         idx = self.get_id(token)
         self.token_map.remove(token)
-        self.counter_sampler.remove(idx)
+        self.counter_sampler.remove(token)
+        self.prepared = False
+        
 
 
     def compact(self):
         self.token_map.compact()
         self.counter_sampler.compact()
+        self.ensure_prepared()
 
 
     def prune(self, min_frequency=5, count=False):
         '''
         Remove all tokens that have been observed fewer than min_frequency
         times.  Counts for tokens that are removed are attributed to UNK.
-        `count=True` enumertes the discarded tokens.
+        `count=True` enumerates the discarded tokens.
         '''
         counts = []
         tokens = []
         if count:
             dumped = []
-        for idx, token in enumerate(self.token_map.tokens):
+        for token, idx in self.token_map.get_kviterator():
 
             # Copy over tokens that have at least min_frequency
             # observations. Also copy over UNK no matter what it's
             # frequency.
+            if idx == 0:
+                tokens = ['UNK'] + tokens
+                counts.append(0)
+                continue
+            
             if (
-                self.counter_sampler.get_frequency(idx) >= min_frequency
-                or idx == 0
+                self.counter_sampler.get_frequency(token) >= min_frequency
             ):
                 tokens.append(token)
-                counts.append(self.get_frequency(idx))
+                counts.append(self.get_frequency(token))
 
             # Skip tokens that have too little frequency.  Attribute their
             # observations to UNK
             else:
-                counts[UNK] += self.get_frequency(idx)
+                counts[UNK] += self.get_frequency(token)
                 if count:
                     dumped.append(token)
                     
 
         # Create a new TokenMap and CounterFrequency based on the
         # filtered tokens and their counts
-        self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
-        self.counter_sampler = CounterSampler(counts=counts)
+        if self.seqmap:
+            self.token_map = SeqTokenMap(on_unk=self.on_unk, tokens=tokens)
+        else:
+            self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
+            
+        self.counter_sampler = UnigramCounterSampler(counts = OrderedDict( ((t,c) for t,c in zip(tokens,counts)) ))
         if count:
             print("dropped ", len(dumped), " tokens in pruning the unigram dictionary")
+        
+        # Make sure the UD is prepared for fast sampling
+        self.ensure_prepared()
 
 
     def add(self, token):
@@ -123,7 +145,7 @@ class UnigramDictionary(object):
         token_id = self.token_map.add(token)
 
         # Increment the frequency count
-        self.counter_sampler.add(token_id)
+        self.counter_sampler.add(token)
 
         return token_id
 
@@ -136,7 +158,7 @@ class UnigramDictionary(object):
         # Get or create an id for this token
         token_id = self.token_map.add(token)
         # Increment the frequency count
-        self.counter_sampler.add_count(token_id, count)
+        self.counter_sampler.add_count(token, count)
 
 
     def get_vocab_size(self):
@@ -152,6 +174,14 @@ class UnigramDictionary(object):
         '''
         return len(self.counter_sampler)
 
+
+    def ensure_prepared(self):
+        if self.prepared:
+            return
+        else:
+            self.counter_sampler.ensure_prepared()
+            self.ordered_tokens = list(self.counter_sampler.counts)
+            self.prepared = True
 
     def __len__(self):
         '''
@@ -206,22 +236,27 @@ class UnigramDictionary(object):
         # Delegate to the underlying token map.
         return self.token_map.get_ids(token_iterable)
 
-
+    
     def get_token(self, idx):
         '''
         Return token (string) for the corresponding id (int)
         '''
-        # Delegate to the underlying token map
-        return self.token_map.get_token(idx)
+        if self.prepared:
+            return self.ordered_tokens[idx]
+        else:
+            self.ensure_prepared()
+            return self.ordered_tokens[idx]
+            
 
-
+    ### Deprecated: not used except in testing
     def get_tokens(self, idx_iterable):
         '''
         Return the tokens (list of strings) for the corresponding ids
         (ints) issued by idx_iterable.
         '''
-        # Delegate to the underlying token map.
-        return self.token_map.get_tokens(idx_iterable)
+        # Delegate to the underlying counter sampler.
+        ordered_tokens = list(self.counter_sampler.counts)
+        return [self.get_token(idx) for idx in idx_iterable] 
 
 
     def save(self, savedir):
@@ -231,7 +266,7 @@ class UnigramDictionary(object):
         given (savedir), using the default filenames "token-map.gz" and
         "counter-sampler.gz".
         '''
-
+        
         # If the directory provided is a file, raise an error
         if os.path.exists(savedir):
             if os.path.isfile(savedir):
@@ -264,8 +299,9 @@ class UnigramDictionary(object):
         self.token_map = TokenMap()
         self.token_map.load(os.path.join(loaddir, 'token-map.gz'))
 
+
         # Load the CounterSampler by delegation to its load function
-        self.counter_sampler = CounterSampler()
+        self.counter_sampler = UnigramCounterSampler()
         self.counter_sampler.load(
             os.path.join(loaddir, 'counter-sampler.gz'))
 
@@ -275,8 +311,9 @@ class UnigramDictionary(object):
         Gets an iterable of tokens currently in the dictionary.  Omits
         The 'UNK' token.
         '''
+        
         return (
-            token for token in self.token_map.tokens if token is not 'UNK'
+            token for token, _ in self.token_map.get_kviterator() if token is not 'UNK'
         )
 
 
@@ -291,42 +328,48 @@ class UnigramDictionary(object):
 
         # Otherwise get the counts normally
         return (
-            (token, self.get_frequency(self.get_id(token)))
-            for token in self.token_map.tokens
+            (token, self.get_frequency(token))
+            for token in self.get_token_list()
         )
 
 
     def sample(self, shape=None):
         '''
-        Draw a sample according to the counter_sampler probability
+        Draw a sample according to the counter_sampler probability,
+        Return the token_id of the token(s) sampled.
         '''
         # Delegate to the underlying CounterSampler
-        return self.counter_sampler.sample(shape)
+        cs_sample = self.counter_sampler.sample(shape)
+        if shape is None:
+            return np.int64(self.get_id(self.get_token(cs_sample)))
+        token_ids = [self.get_id(self.get_token(idx)) for idx in cs_sample.flatten()]
+        return np.asarray(token_ids, dtype=np.int64).reshape(shape)
+        
 
 
-    def get_probability(self, token_id):
+    def get_probability(self, token):
         '''
-        Return the probability associated to token_id.
+        Return the probability associated to the given token.
         '''
         # Delegate to the underlying CounterSampler
-        return self.counter_sampler.get_probability(token_id)
+        return self.counter_sampler.get_probability(token)
 
 
     def get_token_frequency(self, token):
         '''
         Return the frequency (count) associated to the token
         '''
-        token_id = self.get_id(token)
         # If the token is unknown, return 0
-        if token_id == UNK:
+        if token in self.counter_sampler.counts:
+            return self.get_frequency(token)
+        else:
             return 0
-        return self.get_frequency(token_id)
 
 
-    def get_frequency(self, token_id):
+    def get_frequency(self, token):
         '''
-        Return the frequency associated to token_id.
+        Return the frequency associated to token.
         '''
         # Delegate to the underlying CounterSampler
-        return self.counter_sampler.get_frequency(token_id)
+        return self.counter_sampler.get_frequency(token)
 

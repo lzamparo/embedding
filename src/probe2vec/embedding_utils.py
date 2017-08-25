@@ -2,6 +2,8 @@ import os
 from annoy import AnnoyIndex
 import gzip
 
+
+
 # build annoy index tree
 def build_index(n_hidden, embedder, tokens, n_trees=30):
     ''' build the AnnoyIndex for the (k-mer) word vectors in our vocabulary '''
@@ -48,6 +50,14 @@ def merge_counters(input_list, token_counter_dict):
         top_tokens = top_tokens + c    
     return top_tokens
 
+def ensure_str(s):
+    '''
+    Ensures that the string is encoded as a unicode str, not bytes
+    '''
+    try:
+        return s.decode('utf8')
+    except AttributeError:
+        return s
 
 class SequenceParserException(Exception):
     '''
@@ -110,7 +120,6 @@ class SequenceParser(object):
         * [any]: representation of training data.
         '''
         
-        # get k, stride, verbose from kwargs
         if self.K < 0 or self.stride < 0:
             raise SequenceParserException("For kmerized parsing"
                                                      "k must be > 0 and "
@@ -151,7 +160,6 @@ class SequenceParser(object):
         RETURNS
         * [any]: representation of training data.
         '''
-    
         if self.K < 0 or self.stride < 0:
             raise SequenceParserException("For kmerized parsing"
                                                      "k must be > 0 and "
@@ -229,6 +237,9 @@ class SequenceParser(object):
             
         f.close()
         return tokenized_sentences
+
+
+
 
 
     

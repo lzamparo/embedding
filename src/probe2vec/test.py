@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 from .unigram_dictionary import UnigramDictionary
 from collections import Counter, defaultdict
-from .token_map import TokenMap, SILENT, ERROR, UNK
+from .token_map import TokenMap, SeqTokenMap, SILENT, ERROR, UNK, get_rc, basedict
 import time
 from unittest import main, TestCase
 from theano import tensor as T, function, shared
@@ -12,8 +12,9 @@ from .dataset_reader import TokenChooser, DatasetReader, DataSetReaderIllegalSta
 from .theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
 )
-from .counter_sampler import CounterSampler
+from .counter_sampler import CounterSampler, UnigramCounterSampler
 from .embedding_utils import SequenceParser
+from collections import OrderedDict
 
 from lasagne.init import Normal
 from lasagne.updates import nesterov_momentum
@@ -45,6 +46,10 @@ class TestUnigramDictionary(TestCase):
         'pineapple':3, 'grapefruit':9
     }
     CORPUS = list(Counter(FREQUENCIES).elements())
+    
+    DNA_TOKENS = ['ACGACGAT','TCGATCGA','TCGAACGT','ACGTTCGA']
+    DNA_FREQUENCIES = {'ACGACGAT': 4, 'TCGATCGA': 5, 'TCGAACGT': 4, 'ACGTTCGA': 9}
+    DNA_CORPUS = list(Counter(DNA_FREQUENCIES).elements())
 
 
     def test_add(self):
@@ -64,43 +69,26 @@ class TestUnigramDictionary(TestCase):
             )
 
 
-    def test_sort(self):
-        np.random.seed(1)
-        np.random.shuffle(self.CORPUS)
-        unigram_dictionary = UnigramDictionary()
-        unigram_dictionary.update(self.CORPUS)
-
-        ordered_tokens = ['UNK'] + [
-            token for token, count 
-            in Counter(self.FREQUENCIES).most_common()
-        ]
-        ordered_counts = [0] + [
-            count for token, count 
-            in Counter(self.FREQUENCIES).most_common()
-        ]
-
-        self.assertNotEqual(
-            unigram_dictionary.token_map.tokens,
-            ordered_tokens
-        )
-        self.assertNotEqual(
-            unigram_dictionary.counter_sampler.counts,
-            ordered_counts
-        )
-
-        unigram_dictionary.sort()
+    
+    def test_rc_token_retrieval(self):
+        ''' Test that the counts for a token and its reverse complement
+        are different '''
+        unigram_dictionary = UnigramDictionary(seqmap=True)
+        unigram_dictionary.update_counts(six.iteritems(self.DNA_FREQUENCIES))
         
-        self.assertEqual(
-            unigram_dictionary.token_map.tokens,
-            ordered_tokens
-        )
-        self.assertEqual(
-            unigram_dictionary.counter_sampler.counts,
-            ordered_counts
-        )
-
+        token_count= unigram_dictionary.get_frequency('TCGAACGT')
+        rc_token_count = unigram_dictionary.get_frequency('ACGTTCGA')
+        self.assertTrue(token_count != rc_token_count)
         
-
+    def test_token_rc_code(self):
+        ''' Test that a token and its RC gets assigned to the same code '''
+        unigram_dictionary = UnigramDictionary(seqmap=True)
+        unigram_dictionary.update_counts(six.iteritems(self.DNA_FREQUENCIES))
+        
+        token_id = unigram_dictionary.get_id('TCGAACGT')
+        rc_id = unigram_dictionary.get_id('ACGTTCGA')
+        
+        self.assertTrue(token_id == rc_id)
 
     def test_remove_compact(self):
         unigram_dictionary = UnigramDictionary()
@@ -121,9 +109,8 @@ class TestUnigramDictionary(TestCase):
         for token in reduced_tokens:
             expected_probability = (
                 adjusted_frequencies[token] / float(total))
-            idx = unigram_dictionary.get_id(token)
             self.assertEqual(
-                unigram_dictionary.get_probability(idx), 
+                unigram_dictionary.get_probability(token), 
                 expected_probability
             )
 
@@ -154,7 +141,37 @@ class TestUnigramDictionary(TestCase):
         self.assertTrue(type(array_sample) is np.ndarray)
         self.assertTrue(array_sample.shape == shape)
 
-
+    ### TODO: fix to use token based expected frac from unigram dict
+    ### the test is supposed to show the unigram_dict will sample tokens
+    ### roughly in proportion with the un-normalized frequency counts
+    ### Somehow position in counter sampler list of values is being conflated
+    ### with token_id.
+    
+    ### In the example commented out, the token being sampled is 'banana', but 
+    ### the relative frequency of the first token in the Counter (idx == 1)
+    ### is that for 'pineapple'.  Need to get the comparison right.
+       
+    #unigram_dictionary.token_map.map
+    #{'UNK': 0, 'banana': 2, 'pineapple': 1, 'grapefruit': 4, 'apple': 3, 'orange': 5}
+    #self.FREQUENCIES[token]
+    #8
+    #idx
+    #1
+    #token
+    #'banana'
+    #unigram_dictionary.counter_sampler.counts
+    #OrderedDict([('pineapple', 3), ('banana', 8), ('apple', 4), ('grapefruit', 9), ('orange', 6)])
+    #self.CORPUS
+    #['pineapple', 'pineapple', 'pineapple', 'banana', 'banana', 'banana', 'banana', 'banana', 'banana', 'banana', 'banana', 'apple', 'apple', 'apple', 'apple', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'grapefruit', 'orange', 'orange', 'orange', 'orange', 'orange', 'orange']
+    #self.FREQUENCIES
+    #{'pineapple': 3, 'banana': 8, 'grapefruit': 9, 'apple': 4, 'orange': 6}
+    #found_frac
+    #0.10138
+    #expected_frac
+    #0.26666666666666666    
+    # self.FREQUENCIES['pineapple'] / 30
+    # 0.1     
+    
     def test_counter_sampler_statistics(self):
         '''
         This tests that the UnigramDictionary really does produce results
@@ -169,13 +186,19 @@ class TestUnigramDictionary(TestCase):
 
         # Draw one hundred thousand samples, then total up the fraction of
         # each outcome obseved
-        counter = Counter(unigram_dictionary.sample((100000,)))
+        my_sample = unigram_dictionary.sample((100000,))
+        ### subtract 1 from sample IDs, to account for UNK 
+        ### token space in Token Map (but not Counter Sampler)
+        my_sample = my_sample - 1  
+        counter = Counter(my_sample)
 
         # Make a list of the expected fractions by which each outcome
         # should be observed, in the limit of infinite sample
         total_in_expected = float(len(self.CORPUS))
 
-        tolerance = 0.004  # LZ: this test seems to behave stochastically ??!?  found_frac for grapefruit varies from 0.29718 to 0.3033
+        tolerance = 0.004  
+        
+        
         for idx, found_freq in six.iteritems(counter):
             found_frac = found_freq / 100000.0
             token = unigram_dictionary.get_token(idx)
@@ -198,7 +221,9 @@ class TestUnigramDictionary(TestCase):
             self.assertEqual(unigram_dictionary.get_id(fruit), idx+1)
 
             # Ensure that we can look up the token using the id
-            self.assertEqual(unigram_dictionary.get_token(idx+1), fruit)
+            # Do not increment by 1, since this deprecated method uses
+            # the counter sampler rather than token map
+            self.assertEqual(unigram_dictionary.get_token(idx), fruit)
 
         # Ensure the unigram_dictionary knows its own length
         self.assertEqual(len(unigram_dictionary), len(self.TOKENS)+1)
@@ -206,8 +231,8 @@ class TestUnigramDictionary(TestCase):
         # Asking for ids of non-existent tokens returns the UNK token_id
         self.assertEqual(unigram_dictionary.get_id('no-exist'), 0)
 
-        # Asking for the token at 0 returns 'UNK'
-        self.assertEqual(unigram_dictionary.get_token(0), 'UNK')
+        # Asking for the 'UNK' token returns 0 
+        self.assertEqual(unigram_dictionary.get_id('UNK'), 0)
 
         # Asking for token at non-existent idx raises IndexError
         with self.assertRaises(IndexError):
@@ -255,7 +280,7 @@ class TestUnigramDictionary(TestCase):
 
         # Ensure that get_tokens works
         self.assertEqual(
-            unigram_dictionary.get_tokens(list(range(1, len(self.TOKENS)+1))),
+            unigram_dictionary.get_tokens(list(range(0, len(self.TOKENS)))),
             self.TOKENS
         )
 
@@ -265,11 +290,6 @@ class TestUnigramDictionary(TestCase):
             [self.TOKENS.index('apple')+1, 0]
         )
 
-        # Asking for token at 0 returns the 'UNK' token
-        self.assertEqual(
-            unigram_dictionary.get_tokens([3,0]),
-            [self.TOKENS[3-1], 'UNK']
-        )
 
         # Asking for token at non-existent idx raises IndexError
         with self.assertRaises(IndexError):
@@ -300,9 +320,8 @@ class TestUnigramDictionary(TestCase):
 
         # Test that the counts for each token are correct
         for token, count in list(self.FREQUENCIES.items()):
-            token_id = unigram_dictionary.get_id(token)
             self.assertEqual(
-                unigram_dictionary_copy.get_frequency(token_id),
+                unigram_dictionary_copy.get_frequency(token),
                 count
             )
 
@@ -322,9 +341,10 @@ class TestUnigramDictionary(TestCase):
 
         # Ensure that the dictionary has correctly encoded the desired
         # information about the corpus.
+        
+        
         for token in unigram_dictionary.token_map.tokens:
-            token_id = unigram_dictionary.get_id(token)
-            freq = unigram_dictionary.get_frequency(token_id)
+            freq = unigram_dictionary.get_token_frequency(token)
             if token == 'UNK':
                 self.assertEqual(freq, 0)
             else:
@@ -355,7 +375,7 @@ class TestUnigramDictionary(TestCase):
             self.assertTrue(token not in ('apple', 'pineapple'))
 
             token_id = unigram_dictionary.get_id(token)
-            freq = unigram_dictionary.get_frequency(token_id)
+            freq = unigram_dictionary.get_token_frequency(token)
             if token == 'UNK':
                 self.assertEqual(freq, unk_freq)
             else:
@@ -668,6 +688,159 @@ class TestTokenChooser(TestCase):
 
 
 
+class TestUnigramCounterSampler(TestCase):
+
+    def test_sampling(self):
+        '''
+        Test basic function of assigning counts, and then sampling from
+        The distribution implied by those counts.
+        '''
+        
+        tokens = ['AATAC','TTTTT','CCCCC','GGGAG','ATCGN']
+        counts = list(range(1,6))
+        counter_sampler = UnigramCounterSampler()
+        [counter_sampler.add_count(token,count) for token,count in zip(tokens,counts)]
+
+        # Test asking for a single sample (where no shape tuple supplied)
+        single_sample = counter_sampler.sample()
+        self.assertTrue(type(single_sample) is np.int64)
+
+        # Test asking for an array of samples (by passing a shape tuple)
+        shape = (2,3,5)
+        array_sample = counter_sampler.sample(shape)
+        self.assertTrue(type(array_sample) is np.ndarray)
+        self.assertTrue(array_sample.shape == shape)
+
+
+    def test_add_function(self):
+        '''
+        Make sure that the add function is working correctly.
+        CounterSampler stores counts as list, wherein the value at
+        position i of the list encodes the number of counts seen for
+        outcome i.
+
+        Counts are added by passing the outcome's index into
+        CounterSampler.add()
+        which leads to position i of the counts list to be incremented.
+        If position i doesn't exist, it is created.  If the counts list
+        had only j elements before, and a count is added for position
+        i, with i much greater than j, then many elements are created
+        between i and j, and are provisionally initialized with zero
+        counts.
+
+        Ensure that is done properly
+        '''
+
+        counter_sampler = UnigramCounterSampler()
+        self.assertEqual(counter_sampler.counts, OrderedDict())
+
+        tokens = ['TTTTT']
+        counter_sampler.add(tokens[0])
+        expected_counts = [1]
+        self.assertEqual(list(counter_sampler.counts.values()), expected_counts)
+
+        # Now ensure the underlying sampler can tolerate a counts list
+        # containing zeros, and that the sampling statistics is as
+        # expected.  We expect that the only outcome that should turn up
+        # is outcome 6, since it has all the probability mass.  Check that.
+        counter = Counter(counter_sampler.sample((100000,))) # should be
+                                                             # all 6's
+        total = float(sum(counter.values()))
+        found_normalized = [
+            counter[i] / total for i in range(len(counter))
+        ]
+
+        # Make an list of the expected fractions by which each outcome
+        # should be observed, in the limit of infinite sample
+        expected_normalized = expected_counts
+
+        # Check if each outcome was observed with a fraction that is within
+        # 0.005 of the expected fraction
+        self.assertEqual(found_normalized, expected_normalized)
+
+    def test_add_count(self):
+        '''
+        Add two tokens 100 times each, see if we get approximately
+        equal sampled frequencies.
+        '''
+        counter_sampler = UnigramCounterSampler()
+        self.assertEqual(counter_sampler.counts, OrderedDict())
+        
+        tokens = ['TTTTT','CCCCC']
+        counter_sampler.add_count(tokens[0], 10)
+        counter_sampler.add_count(tokens[1], 10)
+        counter = Counter(counter_sampler.sample((10000000,)))
+        
+        total = float(sum(counter.values()))
+        found_normalized = [
+            counter[i] / total for i in range(len(counter))
+        ]
+        
+        expected_normalized = [0.5,0.5]
+        for f,e in zip(found_normalized, expected_normalized):
+            self.assertAlmostEqual(f, e, places=3)
+               
+        
+        
+    def test_counter_sampler_statistics(self):
+        '''
+        This tests that the sampler really does produce results whose
+        statistics match those requested by the counts vector
+        '''
+        # Seed numpy's random function to make the test reproducible
+        np.random.seed(1)
+
+        # Make a sampler with probabilities proportional to counts
+        counts = list(range(1,4))
+        tokens = ['TTTTT','CCCCC','AGAGA']
+        counter_sampler = UnigramCounterSampler()
+        for outcome, count in zip(tokens,counts):
+            counter_sampler.add_count(outcome,count)
+
+        # Draw one hundred thousand samples, then total up the fraction of
+        # each outcome obseved
+        counter = Counter(counter_sampler.sample((100000,)))
+        total = float(sum(counter.values()))
+        found_normalized = [
+            counter[i] / total for i in range(len(counts))
+        ]
+
+        # Make an list of the expected fractions by which each outcome
+        # should be observed, in the limit of infinite sample
+        total_in_expected = float(sum(counts))
+        expected_normalized = [
+            c / total_in_expected for c in counts
+        ]
+
+        # Check if each outcome was observed with a fraction that is within
+        # 0.005 of the expected fraction
+        close = [
+            abs(f - e) < 0.005
+            for f,e in zip(found_normalized, expected_normalized)
+        ]
+        self.assertTrue(all(close))
+
+
+    def test_save_load(self):
+
+        fname = '../../data/test-data/test-unigram-counter-sampler/test-unigram-counter-sampler.gz'
+
+        # Make a sampler with probabilities proportional to counts
+        counts = list(range(1,4))
+        tokens = ['TTTTT','CCCCC','AGAGA']
+        counter_sampler = UnigramCounterSampler()
+        for outcome, count in zip(tokens,counts):
+            counter_sampler.add_count(outcome,count)
+
+
+        counter_sampler.save(fname)
+
+        new_counter_sampler = UnigramCounterSampler()
+        new_counter_sampler.load(fname)
+        for token in tokens:
+            self.assertEqual(counter_sampler.get_frequency(token), new_counter_sampler.get_frequency(token))
+
+
 class TestCounterSampler(TestCase):
 
     def test_sampling(self):
@@ -790,6 +963,94 @@ class TestCounterSampler(TestCase):
         new_counter_sampler = CounterSampler()
         new_counter_sampler.load(fname)
         self.assertEqual(new_counter_sampler.counts, counts)
+
+
+class TestSeqTokenMap(TestCase):
+    
+    def setUp(self):
+
+        # Define some parameters to be used in construction
+        folder = '../../data/test-data/test-corpus/selex-fasta/'
+        fastafile = 'ALX4_ESW_TGTGTC20NGA_pos.fasta'
+        self.selex_file = folder + fastafile
+        
+        kwargdict = {'parser': 'fasta', 'K': 8, 'stride': 1}
+        self.fasta_parser = SequenceParser(**kwargdict)
+        self.fasta_seqs = self.fasta_parser.parse(self.selex_file)    
+    
+    def test_token_map(self):
+        ''' Make sure we can add tokens, that we get the right number,
+        and that first ID is still UNK. '''
+        
+        token_map = SeqTokenMap()
+        first_tokens = self.fasta_seqs[0]
+        for token in first_tokens:
+            token_map.add(token)
+        self.assertEqual(len(token_map) - 1, len(first_tokens))
+
+        self.assertTrue('UNK' in token_map.get_token(0))
+    
+    def test_token_map_plural(self):
+        ''' Repeat testing of token_map, but for all sentences in fixture data '''
+        pass
+    
+    def test_all_token_rc(self):
+        ''' 
+        Repeat testing of test_rc_tokens, but for all sentences in
+        fixture data.
+        '''
+        token_map = SeqTokenMap()
+        flat_token_list = [t for l in self.fasta_seqs for t in l]
+        for token in flat_token_list:
+            token_map.add(token)
+        
+        rc_tokens = [get_rc(t) for l in self.fasta_seqs for t in l]
+        for token in rc_tokens:
+            token_map.add(token)
+        
+        # len should reflect that number of IDs is less than 
+        # the number of tokens added
+        self.assertTrue(len(token_map) < len(flat_token_list) + len(rc_tokens) + 1)
+        
+        # the tokens and their RCs should have the same ID
+        for t, r in zip(flat_token_list, rc_tokens):
+            self.assertEqual(token_map.get_id(t), token_map.get_id(r))
+            
+        # the max token ID should be (len(token_map) - 1)/ 2
+        maxID = 0
+        for t in flat_token_list:
+            if token_map.get_id(t) > maxID:
+                maxID = token_map.get_id(t)
+        self.assertTrue(maxID < len(token_map))
+        
+        
+    def test_rc_tokens(self):
+        ''' Test that we add all the tokens in our list
+        but that we use only (|tokens| / 2) token IDs.  '''
+        
+        token_map = SeqTokenMap()
+        first_tokens = self.fasta_seqs[0]
+        for token in first_tokens:
+            token_map.add(token)
+        rc_tokens = [get_rc(t) for t in first_tokens]
+        for token in rc_tokens:
+            token_map.add(token)
+        
+        # len should reflect we added two sentences worth of tokens
+        # plus one for 'UNK'
+        self.assertEqual(len(token_map), 2 * len(first_tokens) + 1)
+        
+        # the tokens and their RCs should have the same ID
+        for t, r in zip(first_tokens, rc_tokens):
+            self.assertEqual(token_map.get_id(t), token_map.get_id(r))
+            
+        # the max token ID should be (len(token_map) - 1)/ 2
+        maxID = 0
+        for t in first_tokens:
+            if token_map.get_id(t) > maxID:
+                maxID = token_map.get_id(t)
+        self.assertTrue(maxID < len(token_map))
+        self.assertEqual(maxID, (len(token_map) - 1) / 2)
 
 
 class TestTokenMap(TestCase):
@@ -947,7 +1208,6 @@ class TestDataReader(TestCase):
             '../../data/test-data/test-corpus/selex-fasta/ELF5_ESV_TGCCGC20NCG_pos.fasta'
         
         ]
-        
         self.batch_size = 5
         self.macrobatch_size = 5
         self.noise_ratio = 15
@@ -956,6 +1216,17 @@ class TestDataReader(TestCase):
         kwargdict = {'parser': 'fasta', 'K': 8, 'stride': 1}
         self.fasta_parser = SequenceParser(**kwargdict)
 
+        self.dataset_reader_selex_no_discard = DatasetReader(
+            files=self.selex_files, 
+            noise_ratio=self.noise_ratio, 
+            min_frequency=0,
+            t=1.0,
+            macrobatch_size=self.macrobatch_size,
+            num_processes=3,
+            verbose=False,
+            parser=self.fasta_parser
+        )
+        
         self.dataset_reader_with_discard = DatasetReader(
             files=self.files,
             noise_ratio = self.noise_ratio,
@@ -964,24 +1235,14 @@ class TestDataReader(TestCase):
             num_processes=3,
             verbose=False
         )
-
+    
         self.dataset_reader_no_discard = DatasetReader(
             files=self.files,
             macrobatch_size=self.macrobatch_size,
             noise_ratio = self.noise_ratio,
             t=1.0,
-            num_processes=3,
+            num_processes=6,
             verbose=False
-        )
-        
-        self.dataset_reader_selex_no_discard = DatasetReader(files=self.selex_files, 
-                                                              noise_ratio=self.noise_ratio, 
-                                                              min_frequency=0,
-                                                              t=1.0,
-                                                              macrobatch_size=self.macrobatch_size,
-                                                              num_processes=3,
-                                                              verbose=False,
-                                                              parser=self.fasta_parser)
 
 
     def test_prune(self):
@@ -1108,9 +1369,7 @@ class TestDataReader(TestCase):
         # actually arises in the text, based on the probability of 
         # discarding
         tolerance = 0.05
-        the_token = reader.unigram_dictionary.get_id('the')
-        the_frequency = reader.unigram_dictionary.get_probability(
-            the_token)
+        the_frequency = reader.unigram_dictionary.get_probability('the')
         expected_keep_ratio = np.sqrt(self.t/the_frequency)
         actual_keep_ratio = signal_query_frequency / float(num_the_tokens)
         self.assertTrue(
@@ -1249,8 +1508,7 @@ class TestDataReader(TestCase):
 
         counts = Counter(tokens)
         for token in tokens:
-            token_id = d.get_id(token)
-            count = d.get_frequency(token_id)
+            count = d.get_frequency(token)
             self.assertEqual(count, counts[token])
 
 
@@ -1263,31 +1521,28 @@ class TestDataReader(TestCase):
         prepkwargs = {'read_async': True}
         reader.prepare(**prepkwargs)
         d = reader.unigram_dictionary
-        
+
         # Make sure all the expected tokens are found in the unigram dict
         tokens = []
         for filename in self.selex_files:
             for add_tokens in reader.parse(filename):
                 tokens.extend(add_tokens)
         counts = Counter(tokens)
-        
+
         for token in tokens:
-            token_id = d.get_id(token)  # drop in token based lookup
-            count = d.get_frequency(token_id) # switch to get_token_frequency()
-            #count = d.get_token_frequency(token)
+            count = d.get_token_frequency(token)
             self.assertEqual(count, counts[token])
             
             
     def test_produce_macrobatches(self):
         '''
-        Check that the DatasetReader produces macrobatches that are
-        the right shape.
+        Check that the DatasetReader produces macrobatches
         '''
         reader = self.dataset_reader_selex_no_discard
         prepkwargs = {'read_async': True}
         reader.prepare(**prepkwargs)
         d = reader.unigram_dictionary
-        
+
         macrobatch_num = 0
         for signal_mb, noise_mb in reader.generate_dataset_parallel():
             macrobatch_num += 1
@@ -1298,6 +1553,22 @@ class TestDataReader(TestCase):
         self.assertTrue(macrobatch_num > 0)
         
         
+    def test_profile_produce_macrobatches(self):
+        import cProfile, pstats
+        
+        reader = self.dataset_reader_selex_no_discard
+        prepkwargs = {'read_async': True}
+        reader.prepare(**prepkwargs)
+    
+        profiler = cProfile.Profile()
+        profiler.runctx('list(reader.generate_examples(reader.generate_filenames()))',globals(), locals())
+    
+        stats = pstats.Stats(profiler)
+        stats.strip_dirs()
+        stats.sort_stats('cumulative', 'calls')
+        stats.print_stats(40)
+        stats.sort_stats('time', 'calls')
+        stats.print_stats(40)        
         
 
     def test_noise_uniqueness(self):
