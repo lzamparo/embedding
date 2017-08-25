@@ -120,10 +120,11 @@ class UnigramDictionary(object):
 
         # Create a new TokenMap and CounterFrequency based on the
         # filtered tokens and their counts
-        if isinstance(self.token_map, TokenMap):
-            self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
-        else:
+        if self.seqmap:
             self.token_map = SeqTokenMap(on_unk=self.on_unk, tokens=tokens)
+        else:
+            self.token_map = TokenMap(on_unk=self.on_unk, tokens=tokens)
+            
         self.counter_sampler = UnigramCounterSampler(counts = OrderedDict( ((t,c) for t,c in zip(tokens,counts)) ))
         if count:
             print("dropped ", len(dumped), " tokens in pruning the unigram dictionary")
