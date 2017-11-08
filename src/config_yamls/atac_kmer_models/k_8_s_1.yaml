@@ -9,6 +9,6 @@ parser: kmerize_fasta_parse
 read_data_async: True
 really_verbose: True
 outfile: ../results/atac_heme/atac_data_k_8_s_1.txt
-num_processes: 3
+num_processes: 2
 timing: True
 macrobatch_size: 100000
