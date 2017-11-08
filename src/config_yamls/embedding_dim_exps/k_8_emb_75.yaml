@@ -11,4 +11,4 @@ num_processes: 2
 timing: True
 macrobatch_size: 100000
 num_embedding_dimensions: 75
-num_epochs: 40
+num_epochs: 20
