@@ -22,6 +22,7 @@ num_embedding_dimensions  = params.get('num_embedding_dimensions', 100)
 num_epochs = params.get('num_epochs',20)
 outfile = params.get('outfile', None)
 kernel = params.get('kernel', [1,2,3,4,5,5,4,3,2,1])
+min_frequency = params.get('min_frequency',0)
 
 # create sequence parser from yaml config file
 parser = SequenceParser(**params)
@@ -41,4 +42,5 @@ embedder, dictionary = word2vec(files=selex_files,
                                 stdout_to_file=params['really_verbose'], 
                                 timing=params['timing'], 
                                 outfile=outfile,
-                                macrobatch_size=mb_size)
+                                macrobatch_size=mb_size,
+                                min_frequency=min_frequency)

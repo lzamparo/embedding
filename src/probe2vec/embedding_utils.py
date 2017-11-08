@@ -174,10 +174,17 @@ class SequenceParser(object):
             
         for fasta_record in self.generate_fasta(f):
             try:
-                ID, seq = fasta_record
+                if len(fasta_record) == 2:  
+                    # no lines between records, SELEX-probe fasta style
+                    ID, seq = fasta_record
+                    
+                elif len(fasta_record) == 3 and not fasta_record[2]:   
+                    # one line between records, ATAC-seq subpeak style
+                    ID, seq, _ = fasta_record
+                    
             except ValueError:
                 fasta_str = "\n".join(fasta_record)
-                print("Got a malformed fastq record in ", filename, " : ", fasta_str)
+                print("Got a malformed fasta record in ", filename, " : ", fasta_str)
                 continue
             tokenized_sentences.append(self.kmerize(seq, self.K, self.stride))
             
