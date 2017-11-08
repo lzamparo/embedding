@@ -196,7 +196,11 @@ def word2vec(
             losses = []
             for batch_num in range(minibatcher.get_num_batches()):
                 t0 = timer()
-                losses.append(train())
+                batch_loss = train()
+                if not np.isnan(batch_loss):
+                    losses.append(train())
+                else:
+                    print("Warning: NaN loss reported for batch", batch_num, " of epoch ", epoch)
                 t1 = timer()
                 if timing:
                     print('running minibatch', batch_num, ' took ', (t1 - t0) * 1000, " micro seconds")                
