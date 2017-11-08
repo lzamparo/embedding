@@ -1,4 +1,5 @@
 Data directory for storing fixed data sets
 
-selex_sample : a few sampled TF-ligand-cycle data files for testing
+atac_data : sub-peak level ATAC-seq data from Corces et al.
+SELEX_data : symbolic links to directories containing both enriched probes (fasta) and all sequenced probes (fastq) for TF-ligand-cycle data files in Lin et al. deep sequenced SELEX data
 test-data : test data provided by word2vec implementation by E. Newell
