@@ -12,8 +12,7 @@ SILENT = 0
 WARN = 1
 ERROR = 2
 UNK = 0
-basedict={'A':'T', 'T':'A', 'C':'G', 'G':'C', 'N':'N', 'K':'K', 'U':'U',\
-          'a': 't', 't':'a', 'c':'g', 'g':'c', 'n':'n'}  
+basedict={'A':'T', 'T':'A', 'C':'G', 'G':'C', 'N':'N', 'K':'K', 'U':'U'}  
 # ^^^ 'U', 'K' present so that 'UNK' maps to 'KUN'
 
 def get_rc(s):

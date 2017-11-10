@@ -146,7 +146,7 @@ class SequenceParser(object):
 
 
 
-    def kmerize_fasta_parse(self, filename, **kwargs):
+    def kmerize_fasta_parse(self, filename, promote=True, **kwargs):
         '''
         Parses input from fastq a fasta encoded corpus files into a 
         file-format independent  in-memory representation.  The output
@@ -182,10 +182,13 @@ class SequenceParser(object):
                     # one line between records, ATAC-seq subpeak style
                     ID, seq, _ = fasta_record
                     
+                    
             except ValueError:
                 fasta_str = "\n".join(fasta_record)
                 print("Got a malformed fasta record in ", filename, " : ", fasta_str)
                 continue
+            if promote:
+                seq = seq.upper()            
             tokenized_sentences.append(self.kmerize(seq, self.K, self.stride))
             
         f.close()
