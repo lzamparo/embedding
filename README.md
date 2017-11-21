@@ -1,5 +1,5 @@
 # Embedding sequences
-Trying out different embedding strategies for SELEX-seq data
+Trying out different embedding strategies for genomic sequence data
 
 Repository structure
 
