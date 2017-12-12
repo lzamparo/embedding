@@ -8,26 +8,28 @@ bamroot="$basedir/bam"
 
 
 # combine bams from all reps into one CT file
-for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
-do
-  cd $ct
-  bams=$(ls *sorted.bam)
-  suff="_all_merged.bam"
-  merged_name=$(echo $ct$suff)
-  samtools merge -@ 8 $merged_name $bams
-  samtools index $merged_name
-done
+# for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
+# do
+#   cd $ct
+#   ctname=$(basename $ct)
+#   bams=$(ls *sorted.bam)
+#   suff="_all_merged.bam"
+#   merged_name=$(echo $ctname$suff)
+#   samtools merge -@ 8 $merged_name $bams
+#   samtools index $merged_name
+# done
 
 cd $bamroot
 outdir="$basedir/tracks"
 
 # make a bw track for each file
-for bam in $(find . -name *all_merged.bam)
+for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
 do
-	ct=$(basename $bam | cut -d'_' -f 1)
-	outfile=$(echo $ct"_RPM_normalized.bw")
+	myct=$(basename $ct)
+	outfile=$(echo $myct"_RPM_normalized.bw")
+	bam=$(echo $myct"_all_merged.bam")
 	echo "turning $bam into $outdir/$outfile..."
-	bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
+	#bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
 done
 echo "ready to be loaded into IGV"
 
