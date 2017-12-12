@@ -7,7 +7,7 @@ basedir=$1
 bamroot="$basedir/bam"
 
 # combine bams from all reps into one CT file
-for ct in $(ls -1 $bamroot)
+for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
 do
   cd $bamroot/$ct
   bams=$(find . -name *.bam)
