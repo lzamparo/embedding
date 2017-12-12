@@ -11,12 +11,11 @@ bamroot="$basedir/bam"
 for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
 do
   cd $ct
-  echo "cwd is: $(pwd)"
   bams=$(ls *sorted.bam)
   suff="_all_merged.bam"
   merged_name=$(echo $ct$suff)
-  echo "samtools merge -@ 16 $merged_name $bams"
-  echo "samtools index $merged_name"
+  samtools merge -@ 16 $merged_name $bams
+  samtools index $merged_name
 done
 
 cd $bamroot
@@ -28,13 +27,13 @@ do
 	ct=$(basename $bam | cut -d'_' -f 1)
 	outfile=$(echo $ct"_RPM_normalized.bw")
 	echo "turning $bam into $outdir/$outfile..."
-	#bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
+	bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
 done
 echo "ready to be loaded into IGV"
 
 cd $bamroot
 # remove CT combined bam files
-for mb in $(find . -name *all_merged.bam)
+for mb in $(find . -mindepth 1 -maxdepth 1 -name *all_merged.bam)
 do
     echo "stub to do rm $mb"
 done
