@@ -14,7 +14,7 @@ do
   bams=$(ls *sorted.bam)
   suff="_all_merged.bam"
   merged_name=$(echo $ct$suff)
-  samtools merge -@ 16 $merged_name $bams
+  samtools merge -@ 8 $merged_name $bams
   samtools index $merged_name
 done
 
