@@ -11,8 +11,8 @@ bamroot="$basedir/bam"
 for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
 do
   cd $ct
-  echo `now inside: pwd`
-  bams=$(ls -1 *sorted.bam)
+  echo "cwd is: $(pwd)"
+  bams=$(ls *sorted.bam)
   suff="_all_merged.bam"
   merged_name=$(echo $ct$suff)
   echo "samtools merge -@ 16 $merged_name $bams"
