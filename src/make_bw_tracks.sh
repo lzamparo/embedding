@@ -6,10 +6,11 @@ set -o nounset -o pipefail -o errexit
 basedir=$1
 bamroot="$basedir/bam"
 
+
 # combine bams from all reps into one CT file
 for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
 do
-  cd $bamroot/$ct
+  cd $ct
   bams=$(find . -name *.bam)
   suff="_all_merged.bam"
   merged_name=$(echo $ct$suff)
