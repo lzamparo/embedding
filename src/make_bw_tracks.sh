@@ -29,13 +29,15 @@ do
 	outfile=$(echo $myct"_RPM_normalized.bw")
 	bam=$(echo $myct"_all_merged.bam")
 	echo "turning $bam into $outdir/$outfile..."
-	#bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
+	bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
 done
 echo "ready to be loaded into IGV"
 
 cd $bamroot
 # remove CT combined bam files
-for mb in $(find . -mindepth 1 -maxdepth 1 -name *all_merged.bam)
+for mb in $(find . -mindepth 1 -maxdepth 2 -name *all_merged.bam)
 do
     echo "stub to do rm $mb"
+    mybai=$(echo $mb".bai")
+    echo "stub to do rm $mybai"
 done
