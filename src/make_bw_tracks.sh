@@ -1,7 +1,10 @@
 #! /bin/bash
 
-$basedir=$1
-$bamroot="$basedir/bam"
+### try to catch a tonne of errors (h/t Michael Hoffman)
+set -o nounset -o pipefail -o errexit
+
+basedir=$1
+bamroot="$basedir/bam"
 
 # combine bams from all reps into one CT file
 for ct in $(ls -1 $bamroot)
