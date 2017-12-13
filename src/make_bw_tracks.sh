@@ -26,7 +26,7 @@ outdir="$basedir/tracks"
 # just the ones we don't have yet
 declare -a mytypes=("./CD8Tcell" "./Bcell" "./CD4Tcell" "./CD34_Bone_Marrow" "./Ery")
 #for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
-for ct in $mytypes
+for ct in "${mytypes[@]}"
 do
 	cd $ct
 	myct=$(basename $ct)
