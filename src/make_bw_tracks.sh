@@ -21,7 +21,6 @@ bamroot="$basedir/bam"
 
 cd $bamroot
 outdir="$basedir/tracks"
-echo "currently in $(pwd)"
 
 # make a bw track for each file
 # just the ones we don't have yet
@@ -31,11 +30,11 @@ for ct in "${mytypes[@]}"
 do
 	myct=$(basename $ct)
 	cd $bamroot/$myct
-	echo "currently in $(pwd)"
 	outfile=$(echo $myct"_RPM_normalized.bw")
 	bam=$(echo $myct"_all_merged.bam")
 	echo "turning $bam into $outdir/$outfile..."
-	#bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
+	bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
+	echo "done..."
 done
 echo "ready to be loaded into IGV"
 
