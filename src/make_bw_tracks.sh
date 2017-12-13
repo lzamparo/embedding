@@ -8,25 +8,23 @@ bamroot="$basedir/bam"
 
 
 # combine bams from all reps into one CT file
-# for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
-# do
-#   cd $ct
-#   ctname=$(basename $ct)
-#   bams=$(ls *sorted.bam)
-#   suff="_all_merged.bam"
-#   merged_name=$(echo $ctname$suff)
-#   samtools merge -@ 8 $merged_name $bams
-#   samtools index $merged_name
-# done
+for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
+do
+  cd $ct
+  ctname=$(basename $ct)
+  bams=$(ls *sorted.bam)
+  suff="_all_merged.bam"
+  merged_name=$(echo $ctname$suff)
+  samtools merge -@ 8 $merged_name $bams
+  samtools index $merged_name
+done
 
 cd $bamroot
 outdir="$basedir/tracks"
 
 # make a bw track for each file
 # just the ones we don't have yet
-declare -a mytypes=("./CD8Tcell" "./Bcell" "./CD4Tcell" "./CD34_Bone_Marrow" "./Ery")
-#for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
-for ct in "${mytypes[@]}"
+for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
 do
 	myct=$(basename $ct)
 	cd $bamroot/$myct
@@ -42,7 +40,7 @@ cd $bamroot
 # remove CT combined bam files
 for mb in $(find . -mindepth 1 -maxdepth 2 -name *all_merged.bam)
 do
-    echo "stub to do rm $mb"
+    rm $mb
     mybai=$(echo $mb".bai")
-    echo "stub to do rm $mybai"
+    rm $mybai
 done
