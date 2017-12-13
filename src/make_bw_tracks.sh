@@ -23,14 +23,17 @@ cd $bamroot
 outdir="$basedir/tracks"
 
 # make a bw track for each file
-for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
+# just the ones we don't have yet
+declare -a mytypes=("./CD8Tcell" "./Bcell" "./CD4Tcell" "./CD34_Bone_Marrow" "./Ery")
+#for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
+for ct in $mytypes
 do
 	cd $ct
 	myct=$(basename $ct)
 	outfile=$(echo $myct"_RPM_normalized.bw")
 	bam=$(echo $myct"_all_merged.bam")
 	echo "turning $bam into $outdir/$outfile..."
-	bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
+	#bamCoverage -b $bam --normalizeUsingRPKM -p 8 -o $outdir/$outfile
 done
 echo "ready to be loaded into IGV"
 
