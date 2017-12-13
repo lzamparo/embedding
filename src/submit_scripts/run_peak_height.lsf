@@ -1,0 +1,17 @@
+#!/bin/bash
+#BSUB -J peak_height
+#BSUB -n 8
+#BSUB -R rusage[mem=64]
+#BSUB -W 6:00
+#BSUB -o %J.stdout
+#BSUB -eo %J.stderr
+
+# set up env, cd to source
+cd ~/projects/tools/atac-atlas/tools
+
+basedir=/data/leslie/zamparol/heme_ATAC/data
+scaling_factors="results/size_factors_sorted.csv"
+peaks_root="peaks"
+
+# run peak height calc script
+bash calc_peak_heights.sh -b $basedir -p $peaks_root -f $scaling_factors -g $ct
