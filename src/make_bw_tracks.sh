@@ -29,8 +29,9 @@ declare -a mytypes=("./CD8Tcell" "./Bcell" "./CD4Tcell" "./CD34_Bone_Marrow" "./
 #for ct in $(find $bamroot -mindepth 1 -maxdepth 1 -type d)
 for ct in "${mytypes[@]}"
 do
-	#cd $ct
 	myct=$(basename $ct)
+	cd $bamroot/$myct
+	echo "currently in $(pwd)"
 	outfile=$(echo $myct"_RPM_normalized.bw")
 	bam=$(echo $myct"_all_merged.bam")
 	echo "turning $bam into $outdir/$outfile..."
