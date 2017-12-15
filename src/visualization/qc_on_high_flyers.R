@@ -1,6 +1,7 @@
 library(data.table)
 library(ggplot2)
 library(ggridges)
+library(gridExtra)
 
 ### geometric mean impl taken from SO
 gm_mean = function(x, na.rm=TRUE){
@@ -26,32 +27,71 @@ for (myfile in norm_summit_beds){
   ct_summits$celltype = ct_name
   setkey(ct_summits, chrom, start, end)
   
-  # keep only those peaks associated with hf genes
+  # reserve only those peaks associated with hf genes
   ct_hf_summits = merge(ct_summits, hf_peaks, by.x=c("chrom", "start", "end"), by.y=c("seqnames", "start", "end"))
   ct_hf_summits = ct_hf_summits[,.(chrom, start, end, height, celltype, width, annot, nearest.gene, nearest.gene.dist)]
   
-  if (!exists("all_ct_summits")){
-    all_ct_summits = ct_hf_summits
+  if (!exists("all_cthf_summits")){
+    all_cthf_summits = ct_hf_summits
+    all_ct_summits = ct_summits
   }
   else {
-    all_ct_summits = rbind(all_ct_summits,ct_hf_summits)
+    all_cthf_summits = rbind(all_cthf_summits,ct_hf_summits)
+    all_ct_summits = rbind(all_ct_summits, ct_summits)
   }
 }
 
+setkey(all_ct_summits, chrom, start, end)
+
 setwd("/Users/zamparol/projects/SeqDemote/results/diagnostic_plots/ATAC/")
 
+### For the peaks associated with high flyer genes, do we see multi-modality in their max peak heights?
+
 # Plot the distribution of library scaled peak heights for each gene as a ridge plot
-lib_scaled_peak_heights <- ggplot(all_ct_summits, aes(x = height, y = nearest.gene)) +
+hf_lib_scaled_peak_heights <- ggplot(all_cthf_summits, aes(x = height, y = nearest.gene)) +
   geom_density_ridges(stat = "binline",bins=200) + 
   xlab("Library size normalized peak height") + ylab("Gene") + 
   theme_ridges(grid = FALSE) + 
   ggtitle("Normalized peak heights for peaks associated with high-flyer genes")
 
 # Same as above, but this time correct for peak height by dividing by peak width
-all_ct_summits[, length_corrected_height := height / width]
-width_corrected_lib_scaled_peak_heights <- ggplot(all_ct_summits, aes(x = length_corrected_height, y = nearest.gene)) +
-  geom_density_ridges(stat = "binline",bins=200) + 
-  xlab("Width adjusted library size normalized peak height (-log10)") + ylab("Gene") + 
+all_cthf_summits[, length_corrected_height := height / width]
+hf_width_corrected_lib_scaled_peak_heights <- ggplot(all_cthf_summits, aes(x = length_corrected_height, y = nearest.gene)) +
+  geom_density_ridges(stat = "binline",bins=300) + 
+  xlab("Width adjusted library size normalized peak height") + ylab("Gene") + 
   theme_ridges(grid = FALSE) + 
   ggtitle("Width-adjusted normalized peak heights for peaks associated with high-flyer genes")
+
+#### Not really.  What about for peaks in general across cell types?
+all_ct_summits[, width := end - start]
+all_ct_summits[, length_corrected_height := height / width]
+
+all_lib_scaled_peak_heights <- ggplot(all_ct_summits, aes(x = height, y = celltype)) +
+  geom_density_ridges(stat = "binline",bins=200) + 
+  xlab("Library size normalized peak height") + ylab("Gene") + 
+  theme_ridges(grid = FALSE) + 
+  xlim(0,10) + 
+  ggtitle("Normalized peak heights for all peaks")
+
+# Same as above, but this time correct for peak height by dividing by peak width
+all_width_corrected_lib_scaled_peak_heights <- ggplot(all_ct_summits, aes(x = length_corrected_height, y = celltype)) +
+  geom_density_ridges(stat = "binline",bins=300) + 
+  xlab("Width adjusted library size normalized peak height") + ylab("Gene") + 
+  theme_ridges(grid = FALSE) + 
+  xlim(0,0.025) + 
+  ggtitle("Width-adjusted normalized peak heights for all peaks")
+
+
+pdf(file = "peak_height_diagnostic_plots.pdf", width = 15, height = 13)
+
+# compile plots into a list
+pltList <- list()
+pltList[[1]] <- hf_lib_scaled_peak_heights
+pltList[[2]] <- hf_width_corrected_lib_scaled_peak_heights
+pltList[[3]] <- all_lib_scaled_peak_heights
+pltList[[4]] <- all_width_corrected_lib_scaled_peak_heights
+
+# display the plots in a grid
+grid.arrange(grobs=pltList, ncol=2)
+dev.off()
 
