@@ -21,7 +21,7 @@ class UnigramDictionary(object):
     '''
 
 
-    def __init__(self, on_unk=WARN, token_map=None, counter_sampler=None, seqmap=False):
+    def __init__(self, on_unk=WARN, token_map=None, counter_sampler=None, seqmap=True):
         '''
         Create a new UnigramDictionary.  Typical usage provides no
         arguments, but a token_map and counter_sampler can be provided
@@ -296,7 +296,7 @@ class UnigramDictionary(object):
         the filenames are 'token-map.gz' and 'counter-sampler.gz'.
         '''
         # Load the TokenMap by delegation to its load function
-        self.token_map = TokenMap()
+        self.token_map = SeqTokenMap() if self.seqmap else TokenMap()
         self.token_map.load(os.path.join(loaddir, 'token-map.gz'))
 
 
