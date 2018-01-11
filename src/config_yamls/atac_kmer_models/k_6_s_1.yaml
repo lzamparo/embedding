@@ -1,5 +1,5 @@
-data_dir: ../data/atac_data/
-save_dir: ../results/atac_heme/k_6_s_1
+data_dir: ../data/GM12878_atac/
+save_dir: ../results/GM12878_atac/k_6_s_1
 file_suffixes: fa
 K: 6
 kernel: [5,4,3,2,1,1,1,1,2,3,4,5]
@@ -8,7 +8,7 @@ min_frequency: 2
 parser: kmerize_fasta_parse
 read_data_async: True
 really_verbose: True
-outfile: ../results/atac_heme/atac_data_k_6_s_1.txt
+outfile: ../results/GM12878_atac/atac_data_k_6_s_1.txt
 num_processes: 2
 timing: True
 macrobatch_size: 100000
