@@ -137,7 +137,8 @@ class DatasetReader(object):
         parser=SequenceParser(),
         verbose=True,
         k=None,
-        stride=None
+        stride=None,
+        seqmap=True
     ):
 
         # Register parameters to instance namespace
@@ -155,10 +156,11 @@ class DatasetReader(object):
         self.min_frequency = min_frequency
         self.k = k
         self.stride = stride
+        self.seqmap = seqmap
 
         # If unigram dictionary not supplied, make one
         self.prepared = False
-        self.unigram_dictionary = UnigramDictionary(seqmap=True)
+        self.unigram_dictionary = UnigramDictionary(seqmap=self.seqmap)
 
         # But load dictionary from file if load_dictionary_dir specified.
         if load_dictionary_dir is not None:

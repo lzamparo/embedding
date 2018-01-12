@@ -53,11 +53,11 @@ class TestUnigramDictionary(TestCase):
 
 
     def test_add(self):
-        unigram_dictionary1 = UnigramDictionary()
+        unigram_dictionary1 = UnigramDictionary(seqmap=False)
         unigram_dictionary1.update_counts(six.iteritems(self.FREQUENCIES))
 
         frequencies2 = {'apple':5, 'grapes':3, 'grapefruit':-1}
-        unigram_dictionary2 = UnigramDictionary()
+        unigram_dictionary2 = UnigramDictionary(seqmap=False)
         unigram_dictionary2.update_counts(six.iteritems(frequencies2))
 
         totals = Counter(self.FREQUENCIES) + Counter(frequencies2)
@@ -91,7 +91,7 @@ class TestUnigramDictionary(TestCase):
         self.assertTrue(token_id == rc_id)
 
     def test_remove_compact(self):
-        unigram_dictionary = UnigramDictionary()
+        unigram_dictionary = UnigramDictionary(seqmap=False)
         unigram_dictionary.update(self.CORPUS)
         unigram_dictionary.remove('banana')
         unigram_dictionary.remove('pineapple')
@@ -128,7 +128,7 @@ class TestUnigramDictionary(TestCase):
         Test basic function of assigning counts, and then sampling from
         The distribution implied by those counts.
         '''
-        unigram_dictionary = UnigramDictionary()
+        unigram_dictionary = UnigramDictionary(seqmap=False)
         unigram_dictionary.update(self.CORPUS)
 
         # Test asking for a single sample (where no shape tuple supplied)
@@ -181,7 +181,7 @@ class TestUnigramDictionary(TestCase):
         np.random.seed(1)
 
         # Make a sampler with probabilities proportional to counts
-        unigram_dictionary = UnigramDictionary()
+        unigram_dictionary = UnigramDictionary(seqmap=False)
         unigram_dictionary.update(self.CORPUS)
 
         # Draw one hundred thousand samples, then total up the fraction of
@@ -208,7 +208,7 @@ class TestUnigramDictionary(TestCase):
 
     def test_unigram_dictionary_token_map(self):
 
-        unigram_dictionary = UnigramDictionary(on_unk=SILENT)
+        unigram_dictionary = UnigramDictionary(on_unk=SILENT,seqmap=False)
 
         for idx, fruit in enumerate(self.TOKENS):
             # Ensure that ids are assigned in an auto-incrementing way
@@ -249,7 +249,7 @@ class TestUnigramDictionary(TestCase):
         'UNK' -- any unknown token).
         '''
 
-        unigram_dictionary = UnigramDictionary(on_unk=ERROR)
+        unigram_dictionary = UnigramDictionary(on_unk=ERROR,seqmap=False)
         unigram_dictionary.update(self.TOKENS)
 
         with self.assertRaises(KeyError):
@@ -262,7 +262,7 @@ class TestUnigramDictionary(TestCase):
 
     def test_plural_functions(self):
 
-        unigram_dictionary = UnigramDictionary(on_unk=SILENT)
+        unigram_dictionary = UnigramDictionary(on_unk=SILENT,seqmap=False)
 
         # In these assertions, we offset the expected list of ids by 1
         # because the 0th id in unigram_dictionary is reserved for the UNK
@@ -298,11 +298,11 @@ class TestUnigramDictionary(TestCase):
 
     def test_save_load(self):
 
-        unigram_dictionary = UnigramDictionary(on_unk=SILENT)
+        unigram_dictionary = UnigramDictionary(on_unk=SILENT,seqmap=False)
         unigram_dictionary.update(self.CORPUS)
         unigram_dictionary.save('../../data/test-data/test-unigram-dictionary')
 
-        unigram_dictionary_copy = UnigramDictionary(on_unk=SILENT)
+        unigram_dictionary_copy = UnigramDictionary(on_unk=SILENT,seqmap=False)
         unigram_dictionary_copy.load('../../data/test-data/test-unigram-dictionary')
 
         # Test that the mapping from tokens to ids is unchanged
@@ -336,7 +336,7 @@ class TestUnigramDictionary(TestCase):
 
 
         # Make a unigram dictionary, and populate it with the corpus
-        unigram_dictionary = UnigramDictionary()
+        unigram_dictionary = UnigramDictionary(seqmap=False)
         unigram_dictionary.update(self.CORPUS)
 
         # Ensure that the dictionary has correctly encoded the desired
@@ -1224,6 +1224,7 @@ class TestDataReader(TestCase):
             macrobatch_size=self.macrobatch_size,
             num_processes=3,
             verbose=False,
+            seqmap=True,
             parser=self.fasta_parser
         )
         
@@ -1233,7 +1234,8 @@ class TestDataReader(TestCase):
             t=self.t,
             macrobatch_size=self.macrobatch_size,
             num_processes=3,
-            verbose=False
+            verbose=False,
+            seqmap=False
         )
     
         self.dataset_reader_no_discard = DatasetReader(
@@ -1242,8 +1244,9 @@ class TestDataReader(TestCase):
             noise_ratio = self.noise_ratio,
             t=1.0,
             num_processes=6,
-            verbose=False
-
+            verbose=False,
+            seqmap=False
+        )
 
     def test_prune(self):
         save_dir = '../../data/test-data/test-dataset-reader'
@@ -1259,7 +1262,8 @@ class TestDataReader(TestCase):
         reader = DatasetReader(
             files=files,
             min_frequency=0,
-            verbose=False
+            verbose=False,
+            seqmap=False
         )
         reader.prepare(save_dir=save_dir)
 
@@ -1270,7 +1274,8 @@ class TestDataReader(TestCase):
         reader = DatasetReader(
             files=files,
             min_frequency=10,
-            verbose=False
+            verbose=False,
+            seqmap=False
         )
         reader.prepare()
 
@@ -1283,7 +1288,8 @@ class TestDataReader(TestCase):
             files=files,
             min_frequency=10,
             load_dictionary_dir=save_dir,
-            verbose=False
+            verbose=False,
+            seqmap=False
         )
         self.assertEqual(reader.get_vocab_size(), 7)
 
@@ -1292,13 +1298,14 @@ class TestDataReader(TestCase):
         reader = DatasetReader(
             files=files,
             min_frequency=10,
-            verbose=False
+            verbose=False,
+            seqmap=False
         )
         reader.load_dictionary(save_dir)
         self.assertEqual(reader.get_vocab_size(), 7)
 
         # Now try passing the dictionary into the DatasetReader
-        dictionary = UnigramDictionary()
+        dictionary = UnigramDictionary(seqmap=False)
         dictionary.load(os.path.join(save_dir, 'dictionary'))
         reader = DatasetReader(
             files=files,
@@ -1704,7 +1711,8 @@ class TestMinibatcher(TestCase):
             t=self.t,
             num_processes=3,
             macrobatch_size=self.macrobatch_size,
-            verbose=False
+            verbose=False,
+            seqmap=False            
         )
 
         self.dataset_reader_no_discard = DatasetReader(
@@ -1713,7 +1721,8 @@ class TestMinibatcher(TestCase):
             t=1.0,
             num_processes=3,
             macrobatch_size=self.macrobatch_size,
-            verbose=False
+            verbose=False,
+            seqmap=False
         )
 
 
