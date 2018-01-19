@@ -2,7 +2,7 @@ data_dir: ../data/GM12878_atac/
 save_dir: ../results/GM12878_atac/k_8_s_2
 file_suffixes: fa
 K: 8
-kernel: [5,4,3,2,1,1,1,1,2,3,4,5]
+kernel: [1,2,3,4,5,5,5,5,4,3,2,1]
 stride: 2
 min_frequency: 2
 parser: kmerize_fasta_parse
@@ -12,3 +12,9 @@ outfile: ../results/GM12878_atac/atac_data_k_8_s_2.txt
 num_processes: 2
 timing: True
 macrobatch_size: 100000
+noise_ratio: 20
+batch_size: 1000
+num_embedding_dimensions: 100
+read_data_async: True
+learning_rate: 0.1
+momentum: 0.9
