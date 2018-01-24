@@ -32,7 +32,8 @@ def noise_contrast(signal, noise, scale=True):
     objective = signal_score + noise_score
     loss = -objective
 
-    loss = loss / signal.shape[0]
+    if scale:
+        loss = loss / signal.shape[0]
 
     return loss
 

@@ -1187,7 +1187,46 @@ class TestNoiseContrast(TestCase):
 
         self.assertAlmostEqual(test_loss, expected_loss)
 
-
+class TestSequenceParser(TestCase):
+    
+    def setUp(self):
+        fasta_peak_files = os.path.expanduser("~/projects/SeqDemote/data/ATAC/GM12878/fasta_peak_files")
+        fasta_flank_files = os.path.expanduser("~/projects/SeqDemote/data/ATAC/GM12878/fasta_flank_files")
+        kwargdict = {'parser': 'fasta', 'K': 8, 'stride': 1}
+        self.kwargdict = kwargdict
+        self.fasta_parser = SequenceParser(**kwargdict) 
+        self.peak_files = [os.path.join(fasta_peak_files, f) for f in ["chr10_peaks.fa","chr4_peaks.fa"]]
+        self.flank_files = [os.path.join(fasta_flank_files, f) for f in ["chr10_flanks.fa","chr4_flanks.fa"]]
+        self.num_peaks = [24867, 32048]
+        self.num_flanks = [60540, 83410]
+        
+    def test_exhaust(self):
+        ''' make sure we parse all the records expecte in a peak or flank file '''
+        
+        for f,n in zip(self.peak_files,self.num_peaks):
+            records = self.fasta_parser.kmerize_fasta_parse(f)
+            self.assertEqual(len(records),n)
+            
+        for f,n in zip(self.flank_files, self.num_flanks):
+            records = self.fasta_parser.kmerize_fasta_parse(f)
+            self.assertEqual(len(records, n))
+            
+    def test_kmerizer(self):
+        ''' make sure that kmerized records are the same as their originating
+        subpeak / flank '''
+        
+        for p in self.peak_files:
+            with open(p,'r') as f:
+                sequences = [s.strip() for s in f.readlines() if not s.startswith(">")]
+            kmerized_seqs = self.fasta_parser.kmerize_fasta_parse(p)
+            reconstituted_seqs = [self.fasta_parser.rejoin_to_probe(l, 
+                self.kwargdict['K'], 
+                self.kwargdict['stride']) for l in kmerized_seqs]
+            for original_seq, rejoined_seq in zip(sequences, reconstituted_seqs):
+                self.assertTrue(original_seq == rejoined_seq)
+     
+        
+        
 class TestDataReader(TestCase):
 
     def setUp(self):

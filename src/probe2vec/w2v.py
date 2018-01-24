@@ -5,6 +5,7 @@ import numpy as np
 from timeit import default_timer as timer
 from .dataset_reader import DatasetReader
 from .embedding_utils import SequenceParser
+from . import embedding_utils
 
 from .theano_minibatcher import (
     TheanoMinibatcher, NoiseContrastiveTheanoMinibatcher
@@ -24,7 +25,7 @@ else:
     )
     from lasagne.init import Normal
     from lasagne.updates import nesterov_momentum, adam
-from . import embedding_utils
+
 
 
 def row_dot(matrixA, matrixB):
@@ -109,54 +110,9 @@ def word2vec(
         sys.stdout = my_of
         sys.stderr = my_of    
 
-    # Make a Word2VecMinibatcher, pass through parameters sent by caller
-    reader = DatasetReader(
-        files=files,
-        directories=directories,
-        skip=skip,
-        macrobatch_size=macrobatch_size,
-        max_queue_size=max_queue_size,
-        noise_ratio=noise_ratio,
-        num_processes=num_processes,
-        unigram_dictionary=unigram_dictionary,
-        load_dictionary_dir=load_dictionary_dir,
-        min_frequency=min_frequency,
-        t=t,
-        kernel=kernel,
-        parser=parser,
-        verbose=verbose,
-        k=k,
-        stride=stride
-    )
-    
-    # Prepare the dataset reader (this produces the counter_sampler stats)
-    if not reader.is_prepared():
-        if verbose:
-            print('preparing dictionaries...')
-        reader_kwargs = {'verbose': verbose, 'save_dir': save_dir, 'K': k, 'stride': stride, 'read_async': read_data_async}    
-        reader.prepare(**reader_kwargs)
 
-    # Make a symbolic minibatcher
-    minibatcher = NoiseContrastiveTheanoMinibatcher(
-        batch_size=batch_size,
-        noise_ratio=noise_ratio,
-        dtype="int32",
-        num_dims=2
-    )
-
-    # Make a Word2VecEmbedder object, feed it the combined input.
-    # Note that the full batch includes noise examples and signal_examples
-    # so is larger than batch_size, which is the number of signal_examples
-    # only per batch.
-    full_batch_size = batch_size * (1 + noise_ratio)
-    embedder = Word2VecEmbedder(
-        input_var=minibatcher.get_batch(),
-        batch_size=full_batch_size,
-        vocabulary_size=reader.get_vocab_size(),
-        num_embedding_dimensions=num_embedding_dimensions,
-        query_embedding_init=query_embedding_init,
-        context_embedding_init=context_embedding_init
-    )
+    # Do not need to handle k, stride; already handled by SequenceParser
+    reader, minibatcher, embedder = assemble_model_components(kernel, verbose, skip, parser, noise_ratio, macrobatch_size, unigram_dictionary, max_queue_size, files, min_frequency, num_processes, load_dictionary_dir, directories, t, read_data_async, save_dir, batch_size, context_embedding_init, num_embedding_dimensions, query_embedding_init)
 
     # Architecture is ready.  Make the loss function, and use it to create 
     # the parameter updates responsible for learning
@@ -219,6 +175,92 @@ def word2vec(
     # Return the trained embedder and the dictionary mapping tokens
     # to ids
     return embedder, reader
+
+def assemble_model_components(**kwargs):
+    '''
+    Helper function to assemble a dataset reader, minimatcher, and embedder
+    '''
+    
+    # unpack all the args from the caller.  This is ugly as sin, 
+    # but for now it's far from my worst problem.
+
+    # DatasetReader init params
+    kernel = kwargs.get('kernel', [1,2,3,4,5,5,4,3,2,1])
+    skip = kwargs.get('skip',[])
+    parser = kwargs.get('parser', SequenceParser())
+    noise_ratio = kwargs.get('noise_ratio', 15)
+    macrobatch_size = kwargs.get('macrobatch_size', 100000)
+    unigram_dictionary = kwargs.get('unigram_dictionary',None)
+    max_queue_size = 0
+    files = kwargs.get('files', [])
+    min_frequency = kwargs.get('min_frequency',0)
+    num_processes = kwargs.get('num_processes',3)
+    load_dictionary_dir = kwargs.get('load_dictionary_dir',None)
+    directories = kwargs.get('directories',[])
+    t = kwargs.get('t',1.0e-5)
+    read_data_async = kwargs.get('read_data_async',True)
+    save_dir = kwargs.get('save_dir',[]) 
+    k = kwargs.get('K', None)
+    stride = kwargs.get('stride', None)
+    
+    
+    # Embedding init params
+    batch_size = kwargs.get('batch_size', 1000)
+    context_embedding_init = kwargs.get('context_embedding_init', None)
+    num_embedding_dimensions = kwargs.get('num_embedding_dimensions', 100)
+    query_embedding_init = kwargs.get('query_embedding_init', None)
+    
+    verbose = kwargs.get('verbose', True)
+    
+    reader = DatasetReader(
+        files=files,
+        directories=directories,
+        skip=skip,
+        macrobatch_size=macrobatch_size,
+        max_queue_size=max_queue_size,
+        noise_ratio=noise_ratio,
+        num_processes=num_processes,
+        unigram_dictionary=unigram_dictionary,
+        load_dictionary_dir=load_dictionary_dir,
+        min_frequency=min_frequency,
+        t=t,
+        kernel=kernel,
+        parser=parser,
+        verbose=verbose,
+        k=k,
+        stride=stride
+    )
+    
+    # Prepare the dataset reader (this produces the counter_sampler stats)
+    if not reader.is_prepared():
+        if verbose:
+            print('preparing dictionaries...')
+        reader_kwargs = {'verbose': verbose, 'save_dir': save_dir, 'K': k, 'stride': stride, 'read_async': read_data_async}    
+        reader.prepare(**reader_kwargs)
+
+    # Make a symbolic minibatcher
+    minibatcher = NoiseContrastiveTheanoMinibatcher(
+        batch_size=batch_size,
+        noise_ratio=noise_ratio,
+        dtype="int32",
+        num_dims=2
+    )
+
+    # Make a Word2VecEmbedder object, feed it the combined input.
+    # Note that the full batch includes noise examples and signal_examples
+    # so is larger than batch_size, which is the number of signal_examples
+    # only per batch.
+    full_batch_size = batch_size * (1 + noise_ratio)
+    embedder = Word2VecEmbedder(
+        input_var=minibatcher.get_batch(),
+        batch_size=full_batch_size,
+        vocabulary_size=reader.get_vocab_size(),
+        num_embedding_dimensions=num_embedding_dimensions,
+        query_embedding_init=query_embedding_init,
+        context_embedding_init=context_embedding_init
+    )
+    
+    return reader, minibatcher, embedder
 
 
 

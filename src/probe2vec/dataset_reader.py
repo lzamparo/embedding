@@ -705,3 +705,98 @@ class DatasetReader(object):
         do_discard = np.random.uniform() < discard_probability
 
         return do_discard
+
+
+class AtacDatasetReader(DatasetReader):
+    '''
+    Sub-class of DatasetReader for processing ATAC-seq fasta files.
+    Meanigful differences are:
+    - two chromosomes are withheld for validation, testing respectively
+    - data is read into pandas dataframes, generated from there
+    - noise examples can be drawn from Flanks
+    '''
+    
+    def __init__(self, files=[], directories=[], skip=[], noise_ratio=15, 
+                t=1e-5, num_processes=3, 
+                unigram_dictionary=None, min_frequency=0, 
+                kernel=[1, 2, 3, 4, 5, 5, 4, 3, 2, 1], 
+                load_dictionary_dir=None, 
+                max_queue_size=1000, macrobatch_size=16000, 
+                parser=SequenceParser(), verbose=True, 
+                k=None, stride=None, seqmap=True):
+        
+        # reserve Two chromosomes for testing, validating embeddings
+        from random import shuffle
+        shuffle(files)
+        self.testing_chromosome = files[0]
+        self.validation_chromosome = files[1]
+        
+        # call the superclass constructor
+        DatasetReader.__init__(self, files[2:], directories, skip, noise_ration,
+                               t, num_processes, unigram_dictionary, min_frequency,
+                               kernel=[1,2,3,4,5,5,4,3,2,1],
+                               load_dictionary_dir, max_queue_size, macrobatch_size,
+                               parser, verbose, k, stride, seqmap)
+        
+        
+        # assert that the structures are initialized
+        assert(self.unigram_dictionary is not None)
+     
+     
+    #def generate_examples_from_peaks(self, filename_iterator):
+        #'''
+        #Using the data of a parsed file, generate examples of both
+        #signal and noise examples.  The noise examples are generated
+        #from replacing kmers from within peaks with kmers drawn from 
+        #the dictionary.
+        #
+        #Instead of generating one record at a time, generate a DF of 100 examples
+        #'''
+        
+        #num_examples = 0
+        #chooser = TokenChooser(K=len(self.kernel) // 2, kernel=self.kernel)
+        
+        #for filename in filename_iterator:
+            #parsed = self.parse(filename)
+            #for tokens in parsed:
+                #if len(tokens) < 2:
+                    #continue
+                
+                #for query_token_pos, query_token in enumerate(tokens):
+                    #if self.do_discard(query_token):
+                        #continue
+                    
+                    #context_token_pos = chooser.choose_token(query_token_pos, 
+                                                             #len(tokens))
+                    #context_token_id = self.unigram_dictionary.get_id(tokens[context_token_pos])
+                    #signal_examples = 
+                
+                    
+            
+    
+    def generate_examples_with_flanks(self, peak_filename_iterator, flank_filename_iterator):
+        '''
+        Using the data from both peaks and flanks, without drawing from the 
+        unigram dictionary.
+        '''
+        pass
+    
+    
+    def produce_macrobatches(self, filename_iterator):
+        '''
+        Assemble the bunch es of examples from the parsed data coming from 
+        files that were read.  Proportion of signal to noise examples 
+        is determinted by self.noise_ratio
+        
+        Pack the data from self.generate_examples into pandas DFs, serve out only
+        those that 
+        '''
+        pass
+        
+    
+   
+    
+        
+    
+        
+    

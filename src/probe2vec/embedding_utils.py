@@ -132,7 +132,7 @@ class SequenceParser(object):
         else:
             f = open(filename, mode='r', encoding='utf-8')
             
-        for fastq_record in self.generate_fastq(f):
+        for fastq_record in self._generate_fastq(f):
             try:
                 ID, seq, spacer, quality = fastq_record
             except ValueError:
@@ -172,7 +172,7 @@ class SequenceParser(object):
         else:
             f = open(filename, mode='r', encoding='utf-8')
             
-        for fasta_record in self.generate_fasta(f):
+        for fasta_record in self._generate_fasta(f):
             try:
                 if len(fasta_record) == 2:  
                     # no lines between records, SELEX-probe fasta style
@@ -195,7 +195,7 @@ class SequenceParser(object):
         return tokenized_sentences    
 
 
-    def generate_fasta(self, file):
+    def _generate_fasta(self, file):
         ''' Parse and yield two line fasta records '''
         record = []
         for line in file:
@@ -209,7 +209,7 @@ class SequenceParser(object):
         
         
 
-    def generate_fastq(self, file):
+    def _generate_fastq(self, file):
         ''' Parse and yield four line fastq records '''
         record = []
         for line in file:
