@@ -1,4 +1,5 @@
 import os
+import numpy as np
 
 # Only import theano and lasagne if environment permits it
 exclude_theano_set = 'EXCLUDE_THEANO' in os.environ
@@ -52,3 +53,21 @@ def get_noise_contrastive_loss(activation, num_signal, scale=True):
     signal_activation = activation[0:num_signal,]
     noise_activation = activation[num_signal:,]
     return noise_contrast(signal_activation, noise_activation, scale)
+
+def get_noise_contrastive_nonsymbolic_values(activation, num_signal, scale=True):
+    '''
+    Non-symbolic debugging convenience function to get the embedding values
+    for a minibatch and hunt down why NaNs appear
+    '''
+    signal_activation = activation[0:num_signal,]
+    noise_activation = activation[num_signal:,]
+    log_signal = np.log(signal_activation)
+    log_signal_sum = log_signal.sum()
+    
+    log_noise = np.log(1-noise_activation)
+    log_noise_sum = log_noise.sum()
+    
+    score = -1*(log_signal_sum + log_noise_sum)
+    
+    return score
+    

@@ -734,7 +734,7 @@ class AtacDatasetReader(DatasetReader):
         # call the superclass constructor
         DatasetReader.__init__(self, files[2:], directories, skip, noise_ration,
                                t, num_processes, unigram_dictionary, min_frequency,
-                               kernel=[1,2,3,4,5,5,4,3,2,1],
+                               kernel,
                                load_dictionary_dir, max_queue_size, macrobatch_size,
                                parser, verbose, k, stride, seqmap)
         

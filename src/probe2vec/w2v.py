@@ -154,7 +154,7 @@ def word2vec(
                 t0 = timer()
                 batch_loss = train()
                 if not np.isnan(batch_loss):
-                    losses.append(train())
+                    losses.append(batch_loss)
                 else:
                     print("Warning: NaN loss reported for batch", batch_num, " of epoch ", epoch)
                 t1 = timer()
