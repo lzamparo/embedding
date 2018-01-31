@@ -61,7 +61,7 @@ def word2vec(**params):
     verbose = params.get('really_verbose', False)
     read_data_async = params.get('read_data_async', True)
     timing = params.get('timing', False)
-    
+    save_dir = params.get('save_dir',None)
     #learning_rate = params.get('learning_rate', 0.01)
     #momentum = params.get('momentum', 0.9)
     #updates = nesterov_momentum(
