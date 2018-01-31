@@ -15,6 +15,5 @@ macrobatch_size: 100000
 noise_ratio: 20
 batch_size: 1000
 num_embedding_dimensions: 100
-read_data_async: True
-learning_rate: 0.1
+learning_rate: 0.01
 momentum: 0.9

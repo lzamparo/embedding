@@ -37,61 +37,7 @@ def sigmoid(tensor_var):
     return 1/(1+T.exp(-tensor_var))
 
 
-#def suppress_std():
-    #f = open('/dev/null','w')
-    #sys.stdout = f
-    
-#def establish_std():
-    #sys.stdout = 
-
-def word2vec(
-
-        # Input / output options
-        files=[],
-        directories=[],
-        skip=[],
-        save_dir=None,
-        read_data_async=True,
-        num_processes=3,
-        max_queue_size=0,
-        parser=SequenceParser(),
-        
-        # Parsing options
-        k=None,
-        stride=None,
-
-        # Batching options
-        num_epochs = 10,
-        batch_size = 1000,  # Number of *signal* examples per batch
-        macrobatch_size = 100000,
-
-        # Dictionary options
-        unigram_dictionary=None,
-        load_dictionary_dir=None,
-        min_frequency=0,
-
-        # Sampling options
-        noise_ratio=15,
-        kernel=[1,2,3,4,5,5,4,3,2,1],
-        t = 1.0e-5,
-
-        # Embedding options
-        num_embedding_dimensions=200,
-        query_embedding_init=None,
-        context_embedding_init=None,
-
-        # Learning rate options
-        learning_rate=0.1,
-        momentum=0.9,
-
-        # Verbosity option
-        verbose=True,
-        timing=True,
-        
-        # Really, really verbose: Write stdout, stderr to file
-        stdout_to_file=False,
-        outfile='../results/debug_output/eoferr.txt'
-    ):
+def word2vec(**params):
 
     '''
     Helper function that handles all concerns involved in training
@@ -104,34 +50,44 @@ def word2vec(
     point for you.
     '''
     
-    # if dumping output:
-    if stdout_to_file:
-        my_of = open(outfile,'w')
-        sys.stdout = my_of
-        sys.stderr = my_of    
-
 
     # Do not need to handle k, stride; already handled by SequenceParser
-    reader, minibatcher, embedder = assemble_model_components(kernel, verbose, skip, parser, noise_ratio, macrobatch_size, unigram_dictionary, max_queue_size, files, min_frequency, num_processes, load_dictionary_dir, directories, t, read_data_async, save_dir, batch_size, context_embedding_init, num_embedding_dimensions, query_embedding_init)
+    reader, minibatcher, embedder = assemble_model_components(**params)
 
     # Architecture is ready.  Make the loss function, and use it to create 
     # the parameter updates responsible for learning
-    loss = get_noise_contrastive_loss(embedder.get_output(), batch_size)
-    updates = nesterov_momentum(
-        loss, embedder.get_params(), learning_rate, momentum
-    )
+    loss = get_noise_contrastive_loss(embedder.get_output(), params.get('batch_size', 1000))
+
+    # Unpack some of parameters for controlling the training loop
+    verbose = params.get('really_verbose', False)
+    read_data_async = params.get('read_data_async', True)
+    #learning_rate = params.get('learning_rate', 0.01)
+    #momentum = params.get('momentum', 0.9)
+    #updates = nesterov_momentum(
+        #loss, embedder.get_params(), learning_rate, momentum
+    #)    
+    
+    updates = adam(loss, embedder.get_params())
 
     # Include minibatcher updates, which cause the symbolic batch to move
     # through the dataset like a sliding window
     updates.update(minibatcher.get_updates())
 
-    # Use the loss function and the updates to compile a training function.
+    # Presently use just the noise contrastive loss.  But change here for a
+    # multi-objective loss that uses peaks & flanks
     # Note that it takes no inputs because the dataset is fully loaded using
     # theano shared variables
     train = function([], loss, updates=updates)
+    
+    # Redirect output for logging
+    dump_output = params.get('stdout_to_file',False)
+    if dump_output:
+        my_of = open(params['outfile'],'w')
+        sys.stdout = my_of
+        sys.stderr = my_of    
 
-    # Iterate through the dataset, training the embeddings
-    for epoch in range(num_epochs):
+    # Iterate through the dataset, training the embedder
+    for epoch in range(params.get('num_epochs',10)):
 
         if verbose:
             print('starting epoch %d' % epoch)
@@ -153,11 +109,11 @@ def word2vec(
             for batch_num in range(minibatcher.get_num_batches()):
                 t0 = timer()
                 batch_loss = train()
+                t1 = timer()
                 if not np.isnan(batch_loss):
                     losses.append(batch_loss)
                 else:
                     print("Warning: NaN loss reported for batch", batch_num, " of epoch ", epoch)
-                t1 = timer()
                 if timing:
                     print('running minibatch', batch_num, ' took ', (t1 - t0) * 1000, " micro seconds")                
             if verbose:
@@ -438,9 +394,6 @@ class Word2VecEmbedder(object):
         # We are willing to create the directory given if it doesn't exist
         if not os.path.exists(directory):
             os.mkdir(directory)
-            
-        # debug
-        print("DEBUG: saving embeddings to ", directory)
 
         # Save under the directory given in a file called "embeddings.npz'
         save_path = os.path.join(directory, "embeddings.npz")
