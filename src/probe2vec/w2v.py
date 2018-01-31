@@ -50,7 +50,6 @@ def word2vec(**params):
     point for you.
     '''
     
-
     # Do not need to handle k, stride; already handled by SequenceParser
     reader, minibatcher, embedder = assemble_model_components(**params)
 
@@ -61,6 +60,8 @@ def word2vec(**params):
     # Unpack some of parameters for controlling the training loop
     verbose = params.get('really_verbose', False)
     read_data_async = params.get('read_data_async', True)
+    timing = params.get('timing', False)
+    
     #learning_rate = params.get('learning_rate', 0.01)
     #momentum = params.get('momentum', 0.9)
     #updates = nesterov_momentum(
