@@ -81,7 +81,7 @@ def word2vec(**params):
     train = function([], loss, updates=updates)
     
     # Redirect output for logging
-    dump_output = params.get('stdout_to_file',False)
+    dump_output = params.get('really_verbose',False)
     if dump_output:
         my_of = open(params['outfile'],'w')
         sys.stdout = my_of
