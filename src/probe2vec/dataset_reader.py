@@ -710,9 +710,9 @@ class DatasetReader(object):
 class AtacDatasetReader(DatasetReader):
     '''
     Sub-class of DatasetReader for processing ATAC-seq fasta files.
+    
     Meanigful differences are:
     - two chromosomes are withheld for validation, testing respectively
-    - data is read into pandas dataframes, generated from there
     - noise examples can be drawn from Flanks
     '''
     
@@ -723,13 +723,20 @@ class AtacDatasetReader(DatasetReader):
                 load_dictionary_dir=None, 
                 max_queue_size=1000, macrobatch_size=16000, 
                 parser=SequenceParser(), verbose=True, 
-                k=None, stride=None, seqmap=True):
+                k=None, stride=None, seqmap=True, flank_files=[]):
         
         # reserve Two chromosomes for testing, validating embeddings
         from random import shuffle
         shuffle(files)
-        self.testing_chromosome = files[0]
-        self.validation_chromosome = files[1]
+        self.testing_chromosome_peaks = files[0]
+        self.validation_chromosome_peaks = files[1]
+        
+        if flank_files:
+            testing_chrom = self.testing_chromosome.split("_")[0]
+            validation_chrom = self.validation_chromosome.split("_")[0]
+            self.testing_chromosome_flanks = [f for f in flank_files if f.startswith(testing_chrom)][0]
+            self.validation_chromosome_flanks = [f for f in flank_files if f.startswith(validation_chrom)][0]
+            self.flank_files = [f for f in flank_files if not f.startswith(testing_chrom) or not f.startswith(validation_chrom)]
         
         # call the superclass constructor
         DatasetReader.__init__(self, files[2:], directories, skip, noise_ration,
@@ -743,35 +750,40 @@ class AtacDatasetReader(DatasetReader):
         assert(self.unigram_dictionary is not None)
      
      
-    #def generate_examples_from_peaks(self, filename_iterator):
-        #'''
-        #Using the data of a parsed file, generate examples of both
-        #signal and noise examples.  The noise examples are generated
-        #from replacing kmers from within peaks with kmers drawn from 
-        #the dictionary.
-        #
-        #Instead of generating one record at a time, generate a DF of 100 examples
-        #'''
+    def generate_examples_from_peaks(self, filename_iterator):
+        '''
+        Using the data of a parsed file, generate examples of both
+        signal and noise examples.  The noise examples are generated
+        from replacing kmers from within peaks with kmers drawn from 
+        the dictionary.
         
-        #num_examples = 0
-        #chooser = TokenChooser(K=len(self.kernel) // 2, kernel=self.kernel)
+        Instead of generating one record at a time, generate a signal DF of 100 examples
+        and a noise DF of self.noise_ratio * signal DF.shape[0] examples
+        '''
         
-        #for filename in filename_iterator:
-            #parsed = self.parse(filename)
-            #for tokens in parsed:
-                #if len(tokens) < 2:
-                    #continue
+        num_examples = 0
+        chooser = TokenChooser(K=len(self.kernel) // 2, kernel=self.kernel)
+        
+        for filename in filename_iterator:
+            parsed = self.parse(filename)
+            for tokens in parsed:
                 
-                #for query_token_pos, query_token in enumerate(tokens):
-                    #if self.do_discard(query_token):
-                        #continue
+                for query_token_pos, query_token in enumerate(tokens):
+                    if self.do_discard(query_token):
+                        continue
                     
-                    #context_token_pos = chooser.choose_token(query_token_pos, 
-                                                             #len(tokens))
-                    #context_token_id = self.unigram_dictionary.get_id(tokens[context_token_pos])
-                    #signal_examples = 
-                
-                    
+                    context_token_pos = chooser.choose_token(query_token_pos, 
+                                                             len(tokens))
+                    context_token_id = self.unigram_dictionary.get_id(tokens[context_token_pos])
+                    signal_examples = [[self.unigram_dictionary.get_id(query_token), context_token_id]]
+                    num_examples += 1
+
+                    noise_examples = self.generate_noise_examples(
+                        signal_examples)
+
+                    num_examples += len(noise_examples)
+
+                    yield (signal_examples, noise_examples)                    
             
     
     def generate_examples_with_flanks(self, peak_filename_iterator, flank_filename_iterator):
@@ -779,7 +791,35 @@ class AtacDatasetReader(DatasetReader):
         Using the data from both peaks and flanks, without drawing from the 
         unigram dictionary.
         '''
-        pass
+        
+        #TODO: fix, currently broken.
+        num_examples = 0
+        chooser = TokenChooser(K=len(self.kernel) // 2, kernel=self.kernel)
+        
+        for peak_filename, flank_filename in zip(peak_filename_iterator, flank_filename_iterator):
+            parsed_peaks = self.parse(peak_filename)
+            parsed_flanks = self.parse(flank_filename)
+            ### Need to associate parsed flanks with the appropriate parsed peaks; duplication of flanks to peaks is not a problem
+            ### How to quickly split the parsed peaks, flanks?  Might need a custom parser which yields flank sequences given a peak
+            ### position
+            for tokens in parsed_peaks:
+                
+                for query_token_pos, query_token in enumerate(tokens):
+                    if self.do_discard(query_token):
+                        continue
+                    
+                    context_token_pos = chooser.choose_token(query_token_pos, 
+                                                             len(tokens))
+                    context_token_id = self.unigram_dictionary.get_id(tokens[context_token_pos])
+                    signal_examples = [[self.unigram_dictionary.get_id(query_token), context_token_id]]
+                    num_examples += 1
+
+                    noise_examples = self.generate_noise_examples(
+                        signal_examples)
+
+                    num_examples += len(noise_examples)
+
+                    yield (signal_examples, noise_examples)
     
     
     def produce_macrobatches(self, filename_iterator):
